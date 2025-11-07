@@ -1,0 +1,103 @@
+steps:
+  # Try getting the latest image from the registry
+  - name: gcr.io/cloud-builders/docker
+    id: imagePull
+    waitFor: ["-"]
+    entrypoint: sh
+    args:
+      - '-c'
+      - |
+        docker pull "$REPO_NAME/$_SERVICE_NAME:latest" || exit 0
+  
+  # Build the new image - first the builder stage, then the production image
+  - name: gcr.io/cloud-builders/docker
+    id: imageBuild
+    waitFor: ["imagePull"]
+    entrypoint: sh
+    args:
+      - '-c'
+      - |
+        # Build and tag the builder stage for migrations
+        docker build \
+          --target builder \
+          -t "$REPO_NAME/$_SERVICE_NAME:builder-$COMMIT_SHA" \
+          --cache-from "$REPO_NAME/$_SERVICE_NAME:latest" \
+          .
+        # Build the production image
+        docker build \
+          -t "$REPO_NAME/$_SERVICE_NAME:latest" \
+          -t "$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA" \
+          --cache-from "$REPO_NAME/$_SERVICE_NAME:builder-$COMMIT_SHA" \
+          .
+
+  # Push the image to the registry
+  - name: gcr.io/cloud-builders/docker
+    id: imagePush
+    waitFor: ["imageBuild"]
+    entrypoint: sh
+    args:
+      - '-c'
+      - |
+        docker push --all-tags "$REPO_NAME/$_SERVICE_NAME"
+
+  # Run migrations using the builder stage which has yarn and all dependencies
+  - name: $REPO_NAME/$_SERVICE_NAME:builder-$COMMIT_SHA
+    id: runMigrations
+    waitFor: ["imageBuild"]
+    # run from the built app's directory
+    dir: '/app'
+    env:
+      # These vars are required to connect to the db to run migrations.
+      # Unfornately, they need to be in the cloudbuild trigger environment
+      # as well as the Cloud Run environment. Please keep them in sync.
+      - 'DB_TYPE=$_DB_TYPE'
+      - 'DB_HOST=$_DB_HOST'
+      - 'DB_PORT=$_DB_PORT'
+      - 'DB_USER=$_DB_USER'
+      - 'DB_DATABASE=$_DB_DATABASE'
+      - 'DB_PASSWORD=$_DB_PASSWORD'
+      - 'DB_NAME=$_DB_NAME'
+      - 'DB_SSL=$_DB_SSL'
+      - 'DB_SYNCHRONIZE=$_DB_SYNCHRONIZE'
+      - 'DB_LOGGING=$_DB_LOGGING'
+      - 'DB_POOL_SIZE=$_DB_POOL_SIZE'
+      - 'DB_CONNECTION_TIMEOUT=$_DB_CONNECTION_TIMEOUT'
+    entrypoint: sh
+    args:
+      - '-c'
+      - |
+        set -e
+        yarn migration:show;
+        yarn migration:run;
+  
+  # Deploy the image to the cloud run service
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:slim'
+    id: deployImage
+    waitFor: ["imagePush", "runMigrations"]
+    entrypoint: gcloud
+    args:
+      - run
+      - services
+      - update
+      - $_SERVICE_NAME
+      - '--platform=managed'
+      - >-
+        --image=$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
+      - >-
+        --labels=managed-by=gcp-cloud-build-deploy-cloud-run,commit-sha=$COMMIT_SHA,gcb-build-id=$BUILD_ID
+      - '--region=$_DEPLOY_REGION'
+      - '--quiet'
+images:
+  - >-
+    $REPO_NAME/$_SERVICE_NAME
+options:
+  substitutionOption: ALLOW_LOOSE
+  logging: CLOUD_LOGGING_ONLY
+substitutions:
+  _SERVICE_NAME: holarium-api
+  _DEPLOY_REGION: northamerica-south1
+  _PLATFORM: managed
+tags:
+  - gcp-cloud-build-deploy-cloud-run
+  - gcp-cloud-build-deploy-cloud-run-managed
+  - holarium-api

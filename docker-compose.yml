@@ -1,0 +1,186 @@
+x-backend-network: &BACKEND_NETWORK holarium-network
+x-postgres-volume: &POSTGRES_VOLUME holarium-postgres-data
+x-pgadmin-volume: &PGADMIN_VOLUME holarium-pgadmin-data
+x-node-modules-volume: &NODE_MODULES_VOLUME holarium-node-modules
+
+x-postgres-service-name: &POSTGRES_SERVICE_NAME holarium-postgres
+x-pgadmin-service-name: &PGADMIN_SERVICE_NAME holarium-pgadmin
+x-api-service-name: &API_SERVICE_NAME holarium-api
+
+x-api-public-port: &API_PUBLIC_PORT 8081
+x-pgadmin-public-port: &PGADMIN_PUBLIC_PORT 5050
+
+services:
+  # PostgreSQL Database
+  *POSTGRES_SERVICE_NAME :
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    volumes:
+      - type: volume
+        source: *POSTGRES_VOLUME
+        target: /var/lib/postgresql/data
+      # - ./sql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    ports:
+      - "${DB_PORT}:5432"
+    networks:
+      - *BACKEND_NETWORK
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # PgAdmin for database management
+  *PGADMIN_SERVICE_NAME :
+    image: dpage/pgadmin4:latest
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+    volumes:
+      - type: volume
+        source: *PGADMIN_VOLUME
+        target: /var/lib/pgadmin
+    ports:
+      -  target: 80
+         host_ip: 127.0.0.1
+         published: *PGADMIN_PUBLIC_PORT
+         protocol: tcp
+         mode: host
+    networks:
+      - *BACKEND_NETWORK
+    depends_on:
+      *POSTGRES_SERVICE_NAME :
+        condition: service_healthy
+
+  # Redis for caching and session management
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: spirit-nexus-redis
+  #   restart: unless-stopped
+  #   command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_dev_password}
+  #   volumes:
+  #     - redis_data:/data
+  #   ports:
+  #     - "${REDIS_PORT:-6379}:6379"
+  #   networks:
+  #     - spirit-nexus-network
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+  # NestJS Service
+  *API_SERVICE_NAME :
+    build:
+      context: .
+      target: builder  # Use the builder stage from production Dockerfile
+    restart: unless-stopped
+    environment:
+      # Application
+      NODE_ENV: ${NODE_ENV}
+      PORT: ${PORT}
+      
+      # Database
+      DB_TYPE: ${DB_TYPE}
+      DB_HOST: *POSTGRES_SERVICE_NAME
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_SSL: ${DB_SSL}
+      DB_SYNCHRONIZE: ${DB_SYNCHRONIZE}
+      DB_LOGGING: ${DB_LOGGING}
+      
+      # Redis
+      # REDIS_HOST: redis
+      # REDIS_PORT: 6379
+      # REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_password}
+      
+      # JWT
+      # JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-this}
+      # JWT_ACCESS_TOKEN_EXPIRY: ${JWT_ACCESS_TOKEN_EXPIRY:-15m}
+      # JWT_REFRESH_TOKEN_EXPIRY: ${JWT_REFRESH_TOKEN_EXPIRY:-30d}
+      
+      # Security
+      # BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
+      # RATE_LIMIT_TTL: ${RATE_LIMIT_TTL:-60}
+      # RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-10}
+      
+      # CORS
+      # CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000,http://localhost:8080}
+      
+      # Email (SendGrid/Resend)
+      # EMAIL_PROVIDER: ${EMAIL_PROVIDER:-console}
+      # EMAIL_FROM: ${EMAIL_FROM:-noreply@spiritnexus.local}
+      # SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+      
+      # URLs
+      # FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
+      # API_URL: ${API_URL:-http://localhost:3000}
+    volumes:
+      # Mount source code for hot reloading
+      - .:/app
+      
+      # Use named volume for node_modules to improve performance
+      # - node_modules:/app/node_modules
+      
+      # Mount keys directory for JWT keys
+      # - ./keys:/app/keys:ro
+      
+      # # Prevent mounting dist directory (built inside container)
+      # - /app/dist
+    ports:
+      -  target: ${PORT}
+         host_ip: 127.0.0.1
+         published: *API_PUBLIC_PORT
+         protocol: tcp
+         mode: host
+      - "${DEBUG_PORT}:9229" # Debug port for Node.js
+    networks:
+      - *BACKEND_NETWORK
+    depends_on:
+      *POSTGRES_SERVICE_NAME :
+        condition: service_healthy
+      # redis:
+      #   condition: service_healthy
+    command: yarn start:dev
+
+  # Mailhog for email testing in development
+  # mailhog:
+  #   image: mailhog/mailhog:latest
+  #   container_name: spirit-nexus-mailhog
+  #   restart: unless-stopped
+  #   ports:
+  #     - "${MAILHOG_SMTP_PORT:-1025}:1025" # SMTP server
+  #     - "${MAILHOG_WEB_PORT:-8025}:8025"   # Web UI
+  #   networks:
+  #     - spirit-nexus-network
+  #   profiles:
+  #     - tools
+
+networks:
+  *BACKEND_NETWORK :
+    driver: bridge
+
+volumes:
+  *POSTGRES_VOLUME :
+  *PGADMIN_VOLUME :
+  # pgadmin_data:
+  #   name: ${PGADMIN_VOLUME}
+  #   driver: local
+  # redis_data:
+  #   driver: local
+  # node_modules:
+  #   name: ${NODE_MODULES_VOLUME}
+  #   driver: local
