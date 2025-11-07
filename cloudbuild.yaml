@@ -7,7 +7,7 @@ steps:
     args:
       - '-c'
       - |
-        docker pull "$REPO_NAME/$_SERVICE_NAME:latest" || exit 0
+        docker pull "$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:latest" || exit 0
   
   # Build the new image - first the builder stage, then the production image
   - name: gcr.io/cloud-builders/docker
@@ -20,14 +20,14 @@ steps:
         # Build and tag the builder stage for migrations
         docker build \
           --target builder \
-          -t "$REPO_NAME/$_SERVICE_NAME:builder-$COMMIT_SHA" \
-          --cache-from "$REPO_NAME/$_SERVICE_NAME:latest" \
+          -t "$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:builder-$COMMIT_SHA" \
+          --cache-from "$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:latest" \
           .
         # Build the production image
         docker build \
-          -t "$REPO_NAME/$_SERVICE_NAME:latest" \
-          -t "$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA" \
-          --cache-from "$REPO_NAME/$_SERVICE_NAME:builder-$COMMIT_SHA" \
+          -t "$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:latest" \
+          -t "$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA" \
+          --cache-from "$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:builder-$COMMIT_SHA" \
           .
 
   # Push the image to the registry
@@ -38,10 +38,10 @@ steps:
     args:
       - '-c'
       - |
-        docker push --all-tags "$REPO_NAME/$_SERVICE_NAME"
+        docker push --all-tags "$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME"
 
   # Run migrations using the builder stage which has yarn and all dependencies
-  - name: $REPO_NAME/$_SERVICE_NAME:builder-$COMMIT_SHA
+  - name: $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:builder-$COMMIT_SHA
     id: runMigrations
     waitFor: ["imageBuild"]
     # run from the built app's directory
@@ -82,14 +82,14 @@ steps:
       - $_SERVICE_NAME
       - '--platform=managed'
       - >-
-        --image=$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
+        --image=$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
       - >-
         --labels=managed-by=gcp-cloud-build-deploy-cloud-run,commit-sha=$COMMIT_SHA,gcb-build-id=$BUILD_ID
       - '--region=$_DEPLOY_REGION'
       - '--quiet'
 images:
   - >-
-    $REPO_NAME/$_SERVICE_NAME
+    $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME
 options:
   substitutionOption: ALLOW_LOOSE
   logging: CLOUD_LOGGING_ONLY
@@ -97,6 +97,9 @@ substitutions:
   _SERVICE_NAME: holarium-api
   _DEPLOY_REGION: northamerica-south1
   _PLATFORM: managed
+  _AR_HOSTNAME: northamerica-south1-docker.pkg.dev
+  _AR_REPOSITORY: cloud-run-source-deploy
+  _AR_PROJECT_ID: holarium
 tags:
   - gcp-cloud-build-deploy-cloud-run
   - gcp-cloud-build-deploy-cloud-run-managed
