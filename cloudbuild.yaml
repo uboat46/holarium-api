@@ -95,9 +95,9 @@ options:
   logging: CLOUD_LOGGING_ONLY
 substitutions:
   _SERVICE_NAME: holarium-api
-  _DEPLOY_REGION: northamerica-south1
+  _DEPLOY_REGION: us-central1
   _PLATFORM: managed
-  _AR_HOSTNAME: northamerica-south1-docker.pkg.dev
+  _AR_HOSTNAME: us-central1-docker.pkg.dev
   _AR_REPOSITORY: cloud-run-source-deploy
   _AR_PROJECT_ID: holarium
 tags:
