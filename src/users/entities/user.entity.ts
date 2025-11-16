@@ -94,7 +94,8 @@ export class User {
       return;
     }
 
-    const alreadyHashed = this.password.startsWith('$2a$') || this.password.startsWith('$2b$');
+    const alreadyHashed =
+      this.password.startsWith('$2a$') || this.password.startsWith('$2b$');
     if (alreadyHashed) {
       return;
     }

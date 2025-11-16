@@ -13,6 +13,7 @@ import { bcryptConfig } from './config/bcrypt.config';
 import { ThrottlerConfig, throttlerConfig } from './config/throttler.config';
 import { authConfig } from './config/auth.config';
 import { UsersModule } from './users/users.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { UsersModule } from './users/users.module';
     }),
     TypeOrmModule.forRoot(dataSource.options),
     UsersModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [

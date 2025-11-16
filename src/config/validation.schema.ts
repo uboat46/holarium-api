@@ -34,4 +34,8 @@ export const validationSchema = Joi.object({
 
   AUTH_LOCKOUT_THRESHOLD: Joi.number().integer().min(1).default(5),
   AUTH_LOCKOUT_DURATION_MINUTES: Joi.number().integer().min(1).default(15),
+  MAX_REFRESH_TOKENS_PER_USER: Joi.number().integer().min(1).default(5),
+  TOKEN_REUSE_GRACE_PERIOD_SECONDS: Joi.number().integer().min(0).default(0),
+
+  JWT_SECRET: Joi.string().optional(),
 });

@@ -29,7 +29,10 @@ export class UsersService {
   }
 
   async create(createUserDto: CreateUserDto): Promise<User> {
-    await this.ensureUniqueEmailAndUsername(createUserDto.email, createUserDto.username);
+    await this.ensureUniqueEmailAndUsername(
+      createUserDto.email,
+      createUserDto.username,
+    );
     const user = this.usersRepository.create(createUserDto);
     return this.usersRepository.save(user);
   }
@@ -42,10 +45,9 @@ export class UsersService {
     }
 
     if (query?.search) {
-      qb.andWhere(
-        '(user.username ILIKE :search OR user.email ILIKE :search)',
-        { search: `%${query.search}%` },
-      );
+      qb.andWhere('(user.username ILIKE :search OR user.email ILIKE :search)', {
+        search: `%${query.search}%`,
+      });
     }
 
     return qb.getMany();
@@ -82,17 +84,11 @@ export class UsersService {
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
     const user = await this.findOne(id);
 
-    if (
-      updateUserDto.email &&
-      updateUserDto.email !== user.email
-    ) {
+    if (updateUserDto.email && updateUserDto.email !== user.email) {
       await this.ensureUniqueEmail(updateUserDto.email);
     }
 
-    if (
-      updateUserDto.username &&
-      updateUserDto.username !== user.username
-    ) {
+    if (updateUserDto.username && updateUserDto.username !== user.username) {
       await this.ensureUniqueUsername(updateUserDto.username);
     }
 
@@ -126,7 +122,7 @@ export class UsersService {
     await this.usersRepository.save(user);
   }
 
-  async ensureAccountIsActive(user: User): Promise<void> {
+  ensureAccountIsActive(user: User): void {
     if (user.status !== UserStatus.ACTIVE) {
       throw new ForbiddenException('User account is not active');
     }
