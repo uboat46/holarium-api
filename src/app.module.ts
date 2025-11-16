@@ -11,13 +11,15 @@ import { appConfig } from './config/app.config';
 import { jwtConfig } from './config/jwt.config';
 import { bcryptConfig } from './config/bcrypt.config';
 import { ThrottlerConfig, throttlerConfig } from './config/throttler.config';
+import { authConfig } from './config/auth.config';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,
-      load: [appConfig, jwtConfig, bcryptConfig, throttlerConfig],
+      load: [appConfig, jwtConfig, bcryptConfig, throttlerConfig, authConfig],
       validationSchema,
     }),
     ThrottlerModule.forRootAsync({
@@ -34,6 +36,7 @@ import { ThrottlerConfig, throttlerConfig } from './config/throttler.config';
       },
     }),
     TypeOrmModule.forRoot(dataSource.options),
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [

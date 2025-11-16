@@ -31,4 +31,7 @@ export const validationSchema = Joi.object({
 
   THROTTLE_TTL: Joi.number().integer().min(1).default(60),
   THROTTLE_LIMIT: Joi.number().integer().min(1).default(60),
+
+  AUTH_LOCKOUT_THRESHOLD: Joi.number().integer().min(1).default(5),
+  AUTH_LOCKOUT_DURATION_MINUTES: Joi.number().integer().min(1).default(15),
 });

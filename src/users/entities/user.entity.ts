@@ -71,6 +71,13 @@ export class User {
   })
   lastFailedLoginAt?: Date | null;
 
+  @Column({
+    name: 'locked_until',
+    type: 'timestamp with time zone',
+    nullable: true,
+  })
+  lockedUntil?: Date | null;
+
   @OneToMany(() => RefreshToken, (token) => token.user)
   refreshTokens: RefreshToken[];
 
@@ -107,10 +114,26 @@ export class User {
     this.failedLoginAttempts = 0;
     this.lastLoginAt = new Date();
     this.lastFailedLoginAt = null;
+    this.lockedUntil = null;
   }
 
   incrementFailedAttempts(): void {
     this.failedLoginAttempts += 1;
     this.lastFailedLoginAt = new Date();
+  }
+
+  lockUntil(date: Date): void {
+    this.lockedUntil = date;
+  }
+
+  clearLockout(): void {
+    this.lockedUntil = null;
+  }
+
+  isLocked(now = new Date()): boolean {
+    if (!this.lockedUntil) {
+      return false;
+    }
+    return this.lockedUntil.getTime() > now.getTime();
   }
 }
