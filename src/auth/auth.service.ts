@@ -8,7 +8,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { LessThan, Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { randomBytes, createHash, randomUUID } from 'crypto';
+import { randomUUID, createHash } from 'crypto';
+import { readFileSync } from 'fs';
 import { UsersService } from '../users/users.service';
 import { User, UserStatus } from '../users/entities/user.entity';
 import { RegisterDto } from './dto/register.dto';
@@ -32,6 +33,8 @@ export class AuthService {
   private readonly reuseDetectionWindowMs: number;
   private readonly refreshTokenTtlMs: number;
   private readonly jwtConfig: JwtConfig;
+  private readonly refreshJwtService: JwtService;
+  private readonly refreshJwtSignOptions: { expiresIn: number | StringValue };
 
   constructor(
     private readonly usersService: UsersService,
@@ -48,6 +51,11 @@ export class AuthService {
     this.refreshTokenTtlMs = this.parseDurationToMs(
       this.jwtConfig.refreshTokenTtl,
     );
+
+    this.refreshJwtService = this.createRefreshJwtService();
+    this.refreshJwtSignOptions = {
+      expiresIn: this.jwtConfig.refreshTokenTtl as number | StringValue,
+    };
   }
 
   async register(
@@ -148,10 +156,18 @@ export class AuthService {
     context: TokenContext,
     options?: { familyId?: string; rotatedFromId?: string },
   ): Promise<string> {
-    const plainToken = randomBytes(64).toString('base64url');
-    const tokenHash = this.hashToken(plainToken);
-
     const tokenFamilyId = options?.familyId ?? randomUUID();
+    const payload = {
+      sub: user.id,
+      fam: tokenFamilyId,
+      jti: randomUUID(),
+    };
+
+    const signedToken = await this.refreshJwtService.signAsync(
+      payload,
+      this.refreshJwtSignOptions,
+    );
+    const tokenHash = this.hashToken(signedToken);
 
     const expiresAt = new Date(Date.now() + this.refreshTokenTtlMs);
 
@@ -168,7 +184,43 @@ export class AuthService {
     await this.refreshTokenRepository.save(tokenEntity);
     await this.enforceRefreshTokenLimit(user.id);
 
-    return plainToken;
+    return signedToken;
+  }
+
+  private createRefreshJwtService(): JwtService {
+    const refreshPrivateKey = this.loadKey(
+      this.jwtConfig.refreshPrivateKeyPath,
+    );
+    const refreshPublicKey = this.loadKey(this.jwtConfig.refreshPublicKeyPath);
+    const useRsa = !!(refreshPrivateKey && refreshPublicKey);
+    const fallbackSecret = process.env.JWT_SECRET ?? 'development-secret';
+
+    return new JwtService({
+      privateKey: useRsa ? refreshPrivateKey : undefined,
+      publicKey: useRsa ? refreshPublicKey : undefined,
+      secret: useRsa ? undefined : fallbackSecret,
+      signOptions: {
+        algorithm: useRsa ? 'RS256' : 'HS512',
+        issuer: this.jwtConfig.issuer,
+        audience: this.jwtConfig.audience,
+      },
+      verifyOptions: {
+        algorithms: useRsa ? ['RS256'] : ['HS512'],
+        issuer: this.jwtConfig.issuer,
+        audience: this.jwtConfig.audience,
+      },
+    });
+  }
+
+  private loadKey(path?: string): string | undefined {
+    if (!path) {
+      return undefined;
+    }
+    try {
+      return readFileSync(path, 'utf8');
+    } catch {
+      return undefined;
+    }
   }
 
   private async enforceRefreshTokenLimit(userId: string): Promise<void> {
@@ -190,6 +242,13 @@ export class AuthService {
     token: RefreshToken;
     user: User;
   }> {
+    let decoded: JwtPayload;
+    try {
+      decoded = await this.refreshJwtService.verifyAsync(refreshToken);
+    } catch {
+      throw this.createInvalidRefreshTokenException();
+    }
+
     const tokenHash = this.hashToken(refreshToken);
     const token = await this.refreshTokenRepository.findOne({
       where: { tokenHash },
@@ -221,6 +280,9 @@ export class AuthService {
     }
 
     const user = token.user;
+    if (decoded.sub !== user.id) {
+      throw this.createInvalidRefreshTokenException();
+    }
     this.usersService.ensureAccountIsActive(user);
 
     return { token, user };
