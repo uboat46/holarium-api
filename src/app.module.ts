@@ -12,6 +12,7 @@ import { jwtConfig } from './config/jwt.config';
 import { bcryptConfig } from './config/bcrypt.config';
 import { ThrottlerConfig, throttlerConfig } from './config/throttler.config';
 import { authConfig } from './config/auth.config';
+import { corsConfig } from './config/cors.config';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 
@@ -20,7 +21,14 @@ import { AuthModule } from './auth/auth.module';
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,
-      load: [appConfig, jwtConfig, bcryptConfig, throttlerConfig, authConfig],
+      load: [
+        appConfig,
+        jwtConfig,
+        bcryptConfig,
+        throttlerConfig,
+        authConfig,
+        corsConfig,
+      ],
       validationSchema,
     }),
     ThrottlerModule.forRootAsync({
@@ -28,12 +36,15 @@ import { AuthModule } from './auth/auth.module';
       useFactory: (configService: ConfigService) => {
         const throttler =
           configService.getOrThrow<ThrottlerConfig>('throttler');
-        return [
-          {
-            ttl: throttler.ttl,
-            limit: throttler.limit,
-          },
-        ];
+        return {
+          throttlers: [
+            {
+              name: 'default',
+              ttl: throttler.ttl,
+              limit: throttler.limit,
+            },
+          ],
+        };
       },
     }),
     TypeOrmModule.forRoot(dataSource.options),
@@ -42,11 +53,12 @@ import { AuthModule } from './auth/auth.module';
   ],
   controllers: [AppController],
   providers: [
-    AppService,
+    // Global rate limiting , needs to be first to apply throttling to all requests
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
+    AppService,
   ],
 })
 export class AppModule {}

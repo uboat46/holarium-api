@@ -38,4 +38,11 @@ export const validationSchema = Joi.object({
   TOKEN_REUSE_GRACE_PERIOD_SECONDS: Joi.number().integer().min(0).default(0),
 
   JWT_SECRET: Joi.string().optional(),
+
+  CORS_ALLOWED_ORIGINS: Joi.string().optional(),
+  CORS_ALLOWED_METHODS: Joi.string().optional(),
+  CORS_ALLOWED_HEADERS: Joi.string().optional(),
+  CORS_EXPOSED_HEADERS: Joi.string().optional(),
+  CORS_ALLOW_CREDENTIALS: Joi.boolean().default(false),
+  CORS_MAX_AGE: Joi.number().integer().min(0).default(600),
 });

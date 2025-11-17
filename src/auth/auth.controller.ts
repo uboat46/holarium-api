@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
+import { Throttle } from '@nestjs/throttler';
 import { User } from '../users/entities/user.entity';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -16,17 +17,20 @@ import { TokenContext } from './interfaces/token-context.interface';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Throttle({ default: { limit: 3, ttl: 3600_000 } })
   @Post('register')
   register(@Body() registerDto: RegisterDto, @Req() req: Request) {
     return this.authService.register(registerDto, this.getContext(req));
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @UseGuards(LocalAuthGuard)
   @Post('login')
   login(@Body() _loginDto: LoginDto, @Req() req: Request) {
     return this.authService.login(req.user as User, this.getContext(req));
   }
 
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
   @Post('refresh')
   refresh(@Body() dto: RefreshTokenDto, @Req() req: Request) {
     return this.authService.refresh(dto.refreshToken, this.getContext(req));

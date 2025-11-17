@@ -1,7 +1,6 @@
 import type { StringValue } from 'ms';
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -198,7 +197,7 @@ export class AuthService {
     });
 
     if (!token) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw this.createInvalidRefreshTokenException();
     }
 
     if (token.revokedAt) {
@@ -208,12 +207,12 @@ export class AuthService {
       if (withinReuseWindow) {
         await this.revokeFamily(token.tokenFamilyId);
       }
-      throw new ForbiddenException('Refresh token revoked');
+      throw this.createInvalidRefreshTokenException();
     }
 
     if (token.expiresAt.getTime() < Date.now()) {
       await this.revokeToken(token);
-      throw new UnauthorizedException('Refresh token expired');
+      throw this.createInvalidRefreshTokenException();
     }
 
     const user = token.user;
@@ -231,7 +230,7 @@ export class AuthService {
       where: { tokenHash, userId },
     });
     if (!token) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw this.createInvalidRefreshTokenException();
     }
     await this.revokeToken(token);
   }
@@ -285,5 +284,9 @@ export class AuthService {
       delete (user as any).password;
     }
     return user;
+  }
+
+  private createInvalidRefreshTokenException(): UnauthorizedException {
+    return new UnauthorizedException('Invalid refresh token');
   }
 }
