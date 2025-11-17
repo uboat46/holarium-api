@@ -25,6 +25,30 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
+## Environment & Secrets
+
+- Copy `.env.example` to `.env` and adjust values for your environment. Every variable listed there is consumed by the config layer (database, JWT, throttling, CORS, lockout policies, etc.).
+- JWTs default to RSA (`RS256`). Generate development keys with:
+
+  ```bash
+  yarn generate:keys
+  ```
+
+  This script writes PEM files into `keys/` (ignored by git). In production, place real keys in your secrets manager (GCP Secret Manager, Vault, etc.) and mount them at the paths referenced by `JWT_PRIVATE_KEY_PATH`, `JWT_PUBLIC_KEY_PATH`, `JWT_REFRESH_PRIVATE_KEY_PATH`, and `JWT_REFRESH_PUBLIC_KEY_PATH`.
+
+- If you cannot provide RSA keys, set `JWT_SECRET` for an HS512 fallback (development only).
+- Documented auth-related env vars:
+
+  | Variable | Purpose |
+  | --- | --- |
+  | `ACCESS_TOKEN_TTL` / `REFRESH_TOKEN_TTL` | Access/refresh lifetime strings (e.g., `15m`, `30d`). |
+  | `MAX_REFRESH_TOKENS_PER_USER` | Number of active refresh tokens allowed before older ones are pruned. |
+  | `AUTH_LOCKOUT_THRESHOLD` / `AUTH_LOCKOUT_DURATION_MINUTES` | Failed-login lockout policy. |
+  | `THROTTLE_TTL` / `THROTTLE_LIMIT` | Global rate-limiting defaults. |
+  | `CORS_ALLOWED_*` | Origin/method/header allowlists for the HTTP pipeline. |
+
+Refer to `keys/README.md` for rotation guidance and keep PEM files out of source control.
+
 ## Project setup
 
 ```bash
