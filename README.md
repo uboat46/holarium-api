@@ -1,122 +1,100 @@
 <p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
+  <img src="https://nestjs.com/img/logo-small.svg" width="90" alt="Nest Logo" />
 </p>
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+# Holarium API
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+NestJS 11 service that powers Holarium's authentication and user-management flows. It exposes secure local auth (email + password + bcrypt), RS256 access/refresh tokens with rotation and reuse detection, admin-scoped user management, and hardened HTTP defaults (Helmet, CORS allow-lists, throttling, login lockout, validation pipes).
 
-## Description
+## Stack
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- **Runtime:** Node.js 22 / NestJS 11
+- **Persistence:** PostgreSQL via TypeORM
+- **Auth:** Passport (local & JWT), bcrypt hashing, RSA-signed JWTs
+- **Hardening:** Helmet, rate limiting, lockout policy, configurable CORS
+- **Testing:** Jest unit tests + Supertest e2e flows
+
+## Getting Started
+
+```bash
+# Install dependencies
+$ yarn install
+
+# Copy env template and tweak values
+$ cp .env.example .env
+
+# Generate development RSA keys (ignored by git)
+$ yarn generate:keys
+
+# Start the API (expects Postgres up per DB_* env vars)
+$ yarn start:dev
+
+# or run the full stack (API + Postgres + pgAdmin)
+$ docker compose up -d
+```
 
 ## Environment & Secrets
 
-- Copy `.env.example` to `.env` and adjust values for your environment. Every variable listed there is consumed by the config layer (database, JWT, throttling, CORS, lockout policies, etc.).
-- JWTs default to RSA (`RS256`). Generate development keys with:
+`.env.example` is the canonical list. Key highlights:
 
-  ```bash
-  yarn generate:keys
-  ```
+| Variable | Purpose |
+| --- | --- |
+| `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | PostgreSQL connection for TypeORM |
+| `JWT_PRIVATE_KEY_PATH`, `JWT_PUBLIC_KEY_PATH` | Access-token RSA PEM paths (generated via `yarn generate:keys`) |
+| `JWT_REFRESH_PRIVATE_KEY_PATH`, `JWT_REFRESH_PUBLIC_KEY_PATH` | Refresh-token RSA PEM paths |
+| `JWT_SECRET` | HS512 fallback secret when PEMs aren't provided (dev only) |
+| `ACCESS_TOKEN_TTL`, `REFRESH_TOKEN_TTL` | Lifetimes such as `15m`, `30d` |
+| `BCRYPT_ROUNDS` | Password hashing cost |
+| `AUTH_LOCKOUT_THRESHOLD`, `AUTH_LOCKOUT_DURATION_MINUTES` | Login lockout policy |
+| `MAX_REFRESH_TOKENS_PER_USER` | Maximum active refresh tokens before pruning |
+| `THROTTLE_TTL`, `THROTTLE_LIMIT` | Global rate-limiting defaults |
+| `CORS_ALLOWED_*` | Origins/methods/headers allow-lists |
 
-  This script writes PEM files into `keys/` (ignored by git). In production, place real keys in your secrets manager (GCP Secret Manager, Vault, etc.) and mount them at the paths referenced by `JWT_PRIVATE_KEY_PATH`, `JWT_PUBLIC_KEY_PATH`, `JWT_REFRESH_PRIVATE_KEY_PATH`, and `JWT_REFRESH_PUBLIC_KEY_PATH`.
+Secrets guidance:
 
-- If you cannot provide RSA keys, set `JWT_SECRET` for an HS512 fallback (development only).
-- Documented auth-related env vars:
+- Dev keys: run `yarn generate:keys`. Output lives in `keys/` and is ignored by git. 
+- Prod/staging: store PEMs in a secrets manager (GCP Secret Manager, Vault, KMS, etc.) and mount them into the container path. Never commit real keys.
+- Rotation: `keys/README.md` documents rolling strategy (keep current + next, update envs, restart API, remove old public keys after TTL windows pass).
 
-  | Variable | Purpose |
-  | --- | --- |
-  | `ACCESS_TOKEN_TTL` / `REFRESH_TOKEN_TTL` | Access/refresh lifetime strings (e.g., `15m`, `30d`). |
-  | `MAX_REFRESH_TOKENS_PER_USER` | Number of active refresh tokens allowed before older ones are pruned. |
-  | `AUTH_LOCKOUT_THRESHOLD` / `AUTH_LOCKOUT_DURATION_MINUTES` | Failed-login lockout policy. |
-  | `THROTTLE_TTL` / `THROTTLE_LIMIT` | Global rate-limiting defaults. |
-  | `CORS_ALLOWED_*` | Origin/method/header allowlists for the HTTP pipeline. |
-
-Refer to `keys/README.md` for rotation guidance and keep PEM files out of source control.
-
-## Project setup
-
-```bash
-$ yarn install
-```
-
-## Compile and run the project
+## Running & Testing
 
 ```bash
-# development
-$ yarn run start
+# Unit tests (services/helpers)
+yarn test
+# or docker compose run --rm holarium-api yarn test
 
-# watch mode
-$ yarn run start:dev
-
-# production mode
-$ yarn run start:prod
+# End-to-end flows (register → login → /auth/me → refresh)
+yarn test:e2e   # requires the compose Postgres service
 ```
 
-## Run tests
+The e2e suite spins up a Nest testing module and currently targets the Postgres container defined in `docker-compose.yml`. Point `DB_*` env vars at a dedicated test schema/database before running in CI.
 
-```bash
-# unit tests
-$ yarn run test
+## API Overview
 
-# e2e tests
-$ yarn run test:e2e
+| Route | Description |
+| --- | --- |
+| `POST /auth/register` | Rate-limited account creation returning access + refresh tokens. |
+| `POST /auth/login` | Email/password login guarded by `LocalStrategy`. |
+| `POST /auth/refresh` | Refresh token rotation with family reuse detection. |
+| `POST /auth/logout` | Revoke single refresh token or all tokens for the user. |
+| `GET /auth/me` | JWT-protected profile endpoint. |
+| `/users/*` | Admin-only user management guarded by `JwtAuthGuard + RolesGuard`. |
 
-# test coverage
-$ yarn run test:cov
-```
+- Helmet, validation pipes, and CORS allow-lists are enabled globally in `main.ts`.
+- Per-route throttling clamps register/login/refresh attempts, while the global guard applies to the rest of the surface area.
+- Lockout policy prevents brute-force password attempts; status/lock checks run before issuing JWTs.
 
-## Deployment
+## Operations Notes
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+- **Docker Compose:** `docker compose up -d` starts Postgres (`holarium-postgres`), the API service, and pgAdmin (optional). Update `.env` to align compose ports/credentials.
+- **Migrations:** `yarn build` then `yarn migration:run`. All schema changes (users, refresh tokens, locked_until column) live in `src/database/migrations`.
+- **Health:** `/health` and `/health/database` endpoints exist; wire them into uptime monitors.
+- **Key rotation:** use the script locally, but in production rely on your secrets system. Update envs, restart the service, and wait for old access tokens to expire before deleting legacy public keys.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## Roadmap / Contributions
 
-```bash
-$ yarn install -g @nestjs/mau
-$ mau deploy
-```
+- Extend e2e coverage (e.g., dockerized Postgres fixtures or Testcontainers).
+- Publish OpenAPI decorators or a Postman collection for the `/auth` routes.
+- Automate PEM rotation (CI job that writes to Secret Manager and triggers a deploy).
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Keep `plan.md`, `.env.example`, and this README in sync when new modules or config keys are introduced. PRs welcome!

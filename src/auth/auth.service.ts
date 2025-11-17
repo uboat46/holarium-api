@@ -5,7 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { LessThan, Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { randomBytes, createHash, randomUUID } from 'crypto';
@@ -204,9 +204,14 @@ export class AuthService {
       const withinReuseWindow =
         this.reuseDetectionWindowMs === 0 ||
         token.revokedAt.getTime() + this.reuseDetectionWindowMs > Date.now();
+
       if (withinReuseWindow) {
+        // A refresh token that was already rotated/revoked should never be presented again.
+        // If it appears inside the configured reuse window we treat it as token replay
+        // and proactively revoke the entire family to force a re-login.
         await this.revokeFamily(token.tokenFamilyId);
       }
+
       throw this.createInvalidRefreshTokenException();
     }
 
@@ -238,6 +243,15 @@ export class AuthService {
   private async revokeToken(token: RefreshToken): Promise<void> {
     token.markRevoked();
     await this.refreshTokenRepository.save(token);
+  }
+
+  async removeExpiredRefreshTokens(
+    referenceDate = new Date(),
+  ): Promise<number> {
+    const result = await this.refreshTokenRepository.delete({
+      expiresAt: LessThan(referenceDate),
+    });
+    return result.affected ?? 0;
   }
 
   private async revokeFamily(tokenFamilyId: string): Promise<void> {

@@ -14,6 +14,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtConfig } from '../config/jwt.config';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LocalAuthGuard } from './guards/local-auth.guard';
+import { RolesGuard } from './guards/roles.guard';
 
 function loadKey(path?: string): string | undefined {
   if (!path) {
@@ -69,6 +70,7 @@ function loadKey(path?: string): string | undefined {
     JwtStrategy,
     JwtAuthGuard,
     LocalAuthGuard,
+    RolesGuard,
   ],
   exports: [AuthService],
 })
