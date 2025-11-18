@@ -37,8 +37,6 @@ export const validationSchema = Joi.object({
   MAX_REFRESH_TOKENS_PER_USER: Joi.number().integer().min(1).default(5),
   TOKEN_REUSE_GRACE_PERIOD_SECONDS: Joi.number().integer().min(0).default(0),
 
-  JWT_SECRET: Joi.string().optional(),
-
   CORS_ALLOWED_ORIGINS: Joi.string().optional(),
   CORS_ALLOWED_METHODS: Joi.string().optional(),
   CORS_ALLOWED_HEADERS: Joi.string().optional(),

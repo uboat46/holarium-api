@@ -8,15 +8,14 @@ import { ActiveUserData } from '../interfaces/active-user-data.interface';
 import { JwtConfig } from '../../config/jwt.config';
 import { UsersService } from '../../users/users.service';
 
-function loadKeyOrSecret(path?: string): string | undefined {
+function loadPublicKey(path?: string): string {
   if (!path) {
-    return undefined;
+    throw new Error('JWT_PUBLIC_KEY_PATH must be configured.');
   }
-
   try {
     return readFileSync(path, 'utf8');
   } catch {
-    return undefined;
+    throw new Error(`Unable to read public key at ${path}`);
   }
 }
 
@@ -27,15 +26,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly usersService: UsersService,
   ) {
     const jwtConfig = configService.getOrThrow<JwtConfig>('jwt');
-    const publicKey = loadKeyOrSecret(jwtConfig.publicKeyPath);
-    const sharedSecret = process.env.JWT_SECRET ?? 'development-secret';
-    const secretOrKey = publicKey ?? sharedSecret;
+    const publicKey = loadPublicKey(jwtConfig.publicKeyPath);
 
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey,
-      algorithms: publicKey ? ['RS256'] : ['HS512'],
+      secretOrKey: publicKey,
+      algorithms: ['RS256'],
       issuer: jwtConfig.issuer,
       audience: jwtConfig.audience,
     });

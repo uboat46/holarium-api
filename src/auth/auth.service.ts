@@ -190,36 +190,39 @@ export class AuthService {
   private createRefreshJwtService(): JwtService {
     const refreshPrivateKey = this.loadKey(
       this.jwtConfig.refreshPrivateKeyPath,
+      'JWT_REFRESH_PRIVATE_KEY_PATH',
     );
-    const refreshPublicKey = this.loadKey(this.jwtConfig.refreshPublicKeyPath);
-    const useRsa = !!(refreshPrivateKey && refreshPublicKey);
-    const fallbackSecret = process.env.JWT_SECRET ?? 'development-secret';
+    const refreshPublicKey = this.loadKey(
+      this.jwtConfig.refreshPublicKeyPath,
+      'JWT_REFRESH_PUBLIC_KEY_PATH',
+    );
 
     return new JwtService({
-      privateKey: useRsa ? refreshPrivateKey : undefined,
-      publicKey: useRsa ? refreshPublicKey : undefined,
-      secret: useRsa ? undefined : fallbackSecret,
+      privateKey: refreshPrivateKey,
+      publicKey: refreshPublicKey,
       signOptions: {
-        algorithm: useRsa ? 'RS256' : 'HS512',
+        algorithm: 'RS256',
         issuer: this.jwtConfig.issuer,
         audience: this.jwtConfig.audience,
       },
       verifyOptions: {
-        algorithms: useRsa ? ['RS256'] : ['HS512'],
+        algorithms: ['RS256'],
         issuer: this.jwtConfig.issuer,
         audience: this.jwtConfig.audience,
       },
     });
   }
 
-  private loadKey(path?: string): string | undefined {
+  private loadKey(path?: string, label?: string): string {
     if (!path) {
-      return undefined;
+      throw new Error(
+        `${label ?? 'JWT key'} path is missing. Ensure RSA keys are provisioned.`,
+      );
     }
     try {
       return readFileSync(path, 'utf8');
     } catch {
-      return undefined;
+      throw new Error(`Unable to read key file at ${path}`);
     }
   }
 

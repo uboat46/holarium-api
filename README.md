@@ -42,7 +42,6 @@ $ docker compose up -d
 | `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | PostgreSQL connection for TypeORM |
 | `JWT_PRIVATE_KEY_PATH`, `JWT_PUBLIC_KEY_PATH` | Access-token RSA PEM paths (generated via `yarn generate:keys`) |
 | `JWT_REFRESH_PRIVATE_KEY_PATH`, `JWT_REFRESH_PUBLIC_KEY_PATH` | Refresh-token RSA PEM paths |
-| `JWT_SECRET` | HS512 fallback secret when PEMs aren't provided (dev only) |
 | `ACCESS_TOKEN_TTL`, `REFRESH_TOKEN_TTL` | Lifetimes such as `15m`, `30d` |
 | `BCRYPT_ROUNDS` | Password hashing cost |
 | `AUTH_LOCKOUT_THRESHOLD`, `AUTH_LOCKOUT_DURATION_MINUTES` | Login lockout policy |

@@ -16,15 +16,17 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 
-function loadKey(path?: string): string | undefined {
+function loadKey(path?: string, label?: string): string {
   if (!path) {
-    return undefined;
+    throw new Error(
+      `${label ?? 'JWT key'} path is missing. Ensure all RSA key env vars are set.`,
+    );
   }
 
   try {
     return readFileSync(path, 'utf8');
   } catch {
-    return undefined;
+    throw new Error(`Unable to read key file at ${path}`);
   }
 }
 
@@ -38,24 +40,27 @@ function loadKey(path?: string): string | undefined {
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
         const jwtConfig = configService.getOrThrow<JwtConfig>('jwt');
-        const privateKey = loadKey(jwtConfig.privateKeyPath);
-        const publicKey = loadKey(jwtConfig.publicKeyPath);
-        const useRsa = !!(privateKey && publicKey);
-        const sharedSecret = process.env.JWT_SECRET ?? 'development-secret';
+        const privateKey = loadKey(
+          jwtConfig.privateKeyPath,
+          'JWT_PRIVATE_KEY_PATH',
+        );
+        const publicKey = loadKey(
+          jwtConfig.publicKeyPath,
+          'JWT_PUBLIC_KEY_PATH',
+        );
         const expiresIn = jwtConfig.accessTokenTtl as number | StringValue;
 
         return {
-          privateKey: useRsa ? privateKey : undefined,
-          publicKey: useRsa ? publicKey : undefined,
-          secret: useRsa ? undefined : sharedSecret,
+          privateKey,
+          publicKey,
           signOptions: {
-            algorithm: useRsa ? 'RS256' : 'HS512',
+            algorithm: 'RS256',
             expiresIn,
             issuer: jwtConfig.issuer,
             audience: jwtConfig.audience,
           },
           verifyOptions: {
-            algorithms: useRsa ? ['RS256'] : ['HS512'],
+            algorithms: ['RS256'],
             issuer: jwtConfig.issuer,
             audience: jwtConfig.audience,
           },
