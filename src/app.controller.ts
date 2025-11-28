@@ -2,6 +2,9 @@ import { Controller, Get } from '@nestjs/common';
 import { AppService } from './app.service';
 import { DataSource } from 'typeorm';
 
+import { Public } from './auth/decorators/public.decorator';
+
+@Public()
 @Controller()
 export class AppController {
   constructor(

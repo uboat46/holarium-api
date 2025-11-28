@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
@@ -73,7 +74,12 @@ function loadKey(path?: string, label?: string): string {
     AuthService,
     LocalStrategy,
     JwtStrategy,
-    JwtAuthGuard,
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+    LocalStrategy,
+    JwtStrategy,
     LocalAuthGuard,
     RolesGuard,
   ],

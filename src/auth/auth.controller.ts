@@ -16,9 +16,9 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { LoginDto } from './dto/login.dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Roles } from './decorators/roles.decorator';
+import { Public } from './decorators/public.decorator';
 import type { ActiveUserData } from './interfaces/active-user-data.interface';
 import { TokenContext } from './interfaces/token-context.interface';
 import { RolesGuard } from './guards/roles.guard';
@@ -28,6 +28,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Throttle({ default: { limit: 3, ttl: 3600_000 } })
+  @Public()
   @Post('register')
   register(@Body() registerDto: RegisterDto, @Req() req: Request) {
     return this.authService.register(registerDto, this.getContext(req));
@@ -35,18 +36,19 @@ export class AuthController {
 
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @UseGuards(LocalAuthGuard)
+  @Public()
   @Post('login')
   login(@Body() _loginDto: LoginDto, @Req() req: Request) {
     return this.authService.login(req.user as User, this.getContext(req));
   }
 
   @Throttle({ default: { limit: 3, ttl: 60_000 } })
+  @Public()
   @Post('refresh')
   refresh(@Body() dto: RefreshTokenDto, @Req() req: Request) {
     return this.authService.refresh(dto.refreshToken, this.getContext(req));
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post('logout')
   logout(
     @CurrentUser() user: ActiveUserData,
@@ -55,7 +57,6 @@ export class AuthController {
     return this.authService.logout(user, dto);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get('me')
   me(@CurrentUser() user: ActiveUserData) {
     return this.authService.getProfile(user.userId);
@@ -69,7 +70,7 @@ export class AuthController {
     };
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
   @Delete('refresh/expired')
   async pruneExpiredTokens() {
