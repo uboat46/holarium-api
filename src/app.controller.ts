@@ -1,6 +1,8 @@
 import { Controller, Get } from '@nestjs/common';
 import { AppService } from './app.service';
 import { DataSource } from 'typeorm';
+import { Throttle } from '@nestjs/throttler';
+
 
 import { Public } from './auth/decorators/public.decorator';
 
@@ -10,18 +12,21 @@ export class AppController {
   constructor(
     private readonly appService: AppService,
     private readonly dataSource: DataSource,
-  ) {}
+  ) { }
 
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @Get()
   getHello(): string {
     return this.appService.getHello();
   }
 
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @Get('health')
   getHealth(): string {
     return this.appService.getHello();
   }
 
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @Get('health/database')
   async checkDatabase() {
     try {
