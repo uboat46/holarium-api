@@ -25,7 +25,7 @@ import { RolesGuard } from './guards/roles.guard';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Throttle({ default: { limit: 3, ttl: 3600_000 } })
   @Public()
@@ -38,6 +38,7 @@ export class AuthController {
   @UseGuards(LocalAuthGuard)
   @Public()
   @Post('login')
+  // the loginDto is not used, but it is required by the guard
   login(@Body() _loginDto: LoginDto, @Req() req: Request) {
     return this.authService.login(req.user as User, this.getContext(req));
   }

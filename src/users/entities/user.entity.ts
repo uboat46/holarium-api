@@ -1,4 +1,5 @@
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import {
   BeforeInsert,
   BeforeUpdate,
@@ -101,14 +102,16 @@ export class User {
     }
 
     const rounds = parseInt(process.env.BCRYPT_ROUNDS ?? '12', 10);
-    this.password = await bcrypt.hash(this.password, rounds);
+    const preHash = crypto.createHash('sha512').update(this.password).digest('hex');
+    this.password = await bcrypt.hash(preHash, rounds);
   }
 
   async validatePassword(plain: string): Promise<boolean> {
     if (!this.password) {
       return false;
     }
-    return bcrypt.compare(plain, this.password);
+    const preHash = crypto.createHash('sha512').update(plain).digest('hex');
+    return bcrypt.compare(preHash, this.password);
   }
 
   markLoginSuccess(): void {
