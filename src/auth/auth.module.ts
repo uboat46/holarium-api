@@ -78,11 +78,9 @@ function loadKey(path?: string, label?: string): string {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
     },
-    LocalStrategy,
-    JwtStrategy,
     LocalAuthGuard,
     RolesGuard,
   ],
   exports: [AuthService],
 })
-export class AuthModule {}
+export class AuthModule { }

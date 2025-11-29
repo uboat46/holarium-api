@@ -22,8 +22,8 @@ export class AppController {
 
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @Get('health')
-  getHealth(): string {
-    return this.appService.getHello();
+  getHealth(): { status: string } {
+    return { status: 'ok' };
   }
 
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
@@ -36,7 +36,6 @@ export class AppController {
       return {
         status: 'unhealthy',
         connected: false,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         error: `${error.message}`,
       };
     }

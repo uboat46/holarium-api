@@ -17,12 +17,11 @@ import { User, UserRole } from './entities/user.entity';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 
-// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
 @UseGuards(RolesGuard)
 @Roles(UserRole.ADMIN)
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UsersService) { }
 
   @Post()
   create(@Body() createUserDto: CreateUserDto): Promise<User> {

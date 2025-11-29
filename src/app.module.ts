@@ -53,7 +53,7 @@ import { AuthModule } from './auth/auth.module';
   ],
   controllers: [AppController],
   providers: [
-    // Global rate limiting , needs to be first to apply throttling to all requests
+    // Global rate limiting, needs to be first to apply throttling to all requests
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
@@ -61,4 +61,4 @@ import { AuthModule } from './auth/auth.module';
     AppService,
   ],
 })
-export class AppModule {}
+export class AppModule { }
