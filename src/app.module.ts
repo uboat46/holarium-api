@@ -15,6 +15,8 @@ import { authConfig } from './config/auth.config';
 import { corsConfig } from './config/cors.config';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
+import { CryptoModule } from './common/crypto/crypto.module';
+import { LoggerModule } from './common/logger/logger.module';
 
 @Module({
   imports: [
@@ -48,6 +50,8 @@ import { AuthModule } from './auth/auth.module';
       },
     }),
     TypeOrmModule.forRoot(dataSource.options),
+    CryptoModule,
+    LoggerModule,
     UsersModule,
     AuthModule,
   ],
@@ -61,4 +65,4 @@ import { AuthModule } from './auth/auth.module';
     AppService,
   ],
 })
-export class AppModule { }
+export class AppModule {}

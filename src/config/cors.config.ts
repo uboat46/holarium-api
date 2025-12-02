@@ -11,7 +11,8 @@ function parseList(value?: string, defaultValue: string[] = []) {
 }
 
 export const corsConfig = registerAs('cors', () => {
-  const defaultOrigins = ['http://localhost:3000'];
+  // No default origins - must be explicitly configured in production
+  const defaultOrigins: string[] = [];
 
   return {
     origins: parseList(process.env.CORS_ALLOWED_ORIGINS, defaultOrigins),

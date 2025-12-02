@@ -9,7 +9,6 @@ import { LessThan, Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID, createHash } from 'crypto';
-import { readFileSync } from 'fs';
 import { UsersService } from '../users/users.service';
 import { User, UserStatus } from '../users/entities/user.entity';
 import { RegisterDto } from './dto/register.dto';
@@ -20,6 +19,7 @@ import { AuthConfig } from '../config/auth.config';
 import { JwtConfig } from '../config/jwt.config';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { ActiveUserData } from './interfaces/active-user-data.interface';
+import { CryptoService } from '../common/crypto/crypto.service';
 
 type AuthResponse = {
   user: User;
@@ -41,6 +41,7 @@ export class AuthService {
     @InjectRepository(RefreshToken)
     private readonly refreshTokenRepository: Repository<RefreshToken>,
     private readonly jwtService: JwtService,
+    private readonly cryptoService: CryptoService,
     configService: ConfigService,
   ) {
     const authConfig = configService.getOrThrow<AuthConfig>('auth');
@@ -76,6 +77,12 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // Check lockout BEFORE password validation to prevent timing attacks
+    // This ensures locked accounts respond with same timing as valid attempts
+    if (user.isLocked()) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
     if (!(await user.validatePassword(password))) {
       await this.usersService.recordFailedLogin(user.id);
       throw new UnauthorizedException('Invalid credentials');
@@ -108,10 +115,16 @@ export class AuthService {
   async logout(
     activeUser: ActiveUserData,
     logoutDto?: LogoutDto,
-  ): Promise<void> {
+  ): Promise<{ success: boolean; message: string; revokedCount?: number }> {
     if (logoutDto?.allDevices) {
-      await this.refreshTokenRepository.delete({ userId: activeUser.userId });
-      return;
+      const result = await this.refreshTokenRepository.delete({
+        userId: activeUser.userId,
+      });
+      return {
+        success: true,
+        message: 'Logged out from all devices',
+        revokedCount: result.affected ?? 0,
+      };
     }
 
     if (!logoutDto?.refreshToken) {
@@ -119,6 +132,10 @@ export class AuthService {
     }
 
     await this.revokeRefreshToken(activeUser.userId, logoutDto.refreshToken);
+    return {
+      success: true,
+      message: 'Logged out successfully',
+    };
   }
 
   async getProfile(userId: string): Promise<User> {
@@ -143,8 +160,8 @@ export class AuthService {
   private async generateAccessToken(user: User): Promise<string> {
     const payload: JwtPayload = {
       sub: user.id,
-      email: user.email,
       role: user.role,
+      jti: randomUUID(),
     };
 
     const expiresIn = this.jwtConfig.accessTokenTtl as number | StringValue;
@@ -171,12 +188,18 @@ export class AuthService {
 
     const expiresAt = new Date(Date.now() + this.refreshTokenTtlMs);
 
+    // Encrypt device and IP for privacy at rest
+    const encryptedDevice = this.cryptoService.encrypt(
+      context.device ?? context.userAgent,
+    );
+    const encryptedIp = this.cryptoService.encrypt(context.ip);
+
     const tokenEntity = this.refreshTokenRepository.create({
       userId: user.id,
       tokenHash,
       tokenFamilyId,
-      device: context.device ?? context.userAgent,
-      ip: context.ip,
+      device: encryptedDevice,
+      ip: encryptedIp,
       expiresAt,
       rotatedFromId: options?.rotatedFromId,
     });
@@ -188,18 +211,15 @@ export class AuthService {
   }
 
   private createRefreshJwtService(): JwtService {
-    const refreshPrivateKey = this.loadKey(
-      this.jwtConfig.refreshPrivateKeyPath,
-      'JWT_REFRESH_PRIVATE_KEY_PATH',
-    );
-    const refreshPublicKey = this.loadKey(
-      this.jwtConfig.refreshPublicKeyPath,
-      'JWT_REFRESH_PUBLIC_KEY_PATH',
-    );
+    if (!this.jwtConfig.refreshPrivateKey || !this.jwtConfig.refreshPublicKey) {
+      throw new Error(
+        'JWT_REFRESH_PRIVATE_KEY and JWT_REFRESH_PUBLIC_KEY must be set in environment variables',
+      );
+    }
 
     return new JwtService({
-      privateKey: refreshPrivateKey,
-      publicKey: refreshPublicKey,
+      privateKey: this.jwtConfig.refreshPrivateKey,
+      publicKey: this.jwtConfig.refreshPublicKey,
       signOptions: {
         algorithm: 'RS256',
         issuer: this.jwtConfig.issuer,
@@ -211,19 +231,6 @@ export class AuthService {
         audience: this.jwtConfig.audience,
       },
     });
-  }
-
-  private loadKey(path?: string, label?: string): string {
-    if (!path) {
-      throw new Error(
-        `${label ?? 'JWT key'} path is missing. Ensure RSA keys are provisioned.`,
-      );
-    }
-    try {
-      return readFileSync(path, 'utf8');
-    } catch {
-      throw new Error(`Unable to read key file at ${path}`);
-    }
   }
 
   private async enforceRefreshTokenLimit(userId: string): Promise<void> {
@@ -263,6 +270,11 @@ export class AuthService {
     }
 
     if (token.revokedAt) {
+      // Token Reuse Detection Logic:
+      // - When reuseDetectionWindowMs === 0: Always revoke family (strictest security)
+      // - When reuseDetectionWindowMs > 0: Only revoke family if reuse occurs within the window
+      // This handles race conditions in distributed systems where a token might be
+      // legitimately used twice in quick succession due to network retries.
       const withinReuseWindow =
         this.reuseDetectionWindowMs === 0 ||
         token.revokedAt.getTime() + this.reuseDetectionWindowMs > Date.now();

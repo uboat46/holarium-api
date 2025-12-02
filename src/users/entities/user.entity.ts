@@ -88,6 +88,17 @@ export class User {
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamp with time zone' })
   updatedAt: Date;
 
+  /**
+   * Hash password before insert/update.
+   *
+   * Uses SHA-512 pre-hashing before bcrypt to:
+   * 1. Handle bcrypt's 72-byte input limit (allows arbitrarily long passwords)
+   * 2. Normalize all passwords to fixed-length input
+   *
+   * Note: This is a non-standard approach. Standard bcrypt-only is equally secure
+   * for passwords under 72 bytes. This implementation is maintained for backwards
+   * compatibility with existing password hashes in the database.
+   */
   @BeforeInsert()
   @BeforeUpdate()
   async hashPassword(): Promise<void> {
@@ -102,7 +113,10 @@ export class User {
     }
 
     const rounds = parseInt(process.env.BCRYPT_ROUNDS ?? '12', 10);
-    const preHash = crypto.createHash('sha512').update(this.password).digest('hex');
+    const preHash = crypto
+      .createHash('sha512')
+      .update(this.password)
+      .digest('hex');
     this.password = await bcrypt.hash(preHash, rounds);
   }
 

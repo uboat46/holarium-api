@@ -1,15 +1,32 @@
 import helmet from 'helmet';
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
 import { AppModule } from './app.module';
 import { CorsConfig } from './config/cors.config';
+import { AppLoggerService } from './common/logger/logger.service';
+import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    bufferLogs: true,
+  });
+
+  // Use custom logger with sensitive data masking
+  const logger = app.get(AppLoggerService);
+  app.useLogger(logger);
   const configService = app.get(ConfigService);
   const corsConfig = configService.get<CorsConfig>('cors');
+
+  console.log('==================== process.env.*', process.env);
+
+  // Enable API versioning
+  app.enableVersioning({
+    type: VersioningType.URI,
+    defaultVersion: '1',
+    prefix: 'api/v',
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -19,6 +36,9 @@ async function bootstrap() {
       transformOptions: { enableImplicitConversion: true },
     }),
   );
+
+  // Global exception filter for stack trace sanitization
+  app.useGlobalFilters(new GlobalExceptionFilter(configService));
 
   app.use(helmet());
 

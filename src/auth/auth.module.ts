@@ -4,7 +4,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { readFileSync } from 'fs';
 import type { StringValue } from 'ms';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
@@ -17,20 +16,6 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 
-function loadKey(path?: string, label?: string): string {
-  if (!path) {
-    throw new Error(
-      `${label ?? 'JWT key'} path is missing. Ensure all RSA key env vars are set.`,
-    );
-  }
-
-  try {
-    return readFileSync(path, 'utf8');
-  } catch {
-    throw new Error(`Unable to read key file at ${path}`);
-  }
-}
-
 @Module({
   imports: [
     ConfigModule,
@@ -41,19 +26,18 @@ function loadKey(path?: string, label?: string): string {
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
         const jwtConfig = configService.getOrThrow<JwtConfig>('jwt');
-        const privateKey = loadKey(
-          jwtConfig.privateKeyPath,
-          'JWT_PRIVATE_KEY_PATH',
-        );
-        const publicKey = loadKey(
-          jwtConfig.publicKeyPath,
-          'JWT_PUBLIC_KEY_PATH',
-        );
+
+        if (!jwtConfig.privateKey || !jwtConfig.publicKey) {
+          throw new Error(
+            'JWT_PRIVATE_KEY and JWT_PUBLIC_KEY must be set in environment variables',
+          );
+        }
+
         const expiresIn = jwtConfig.accessTokenTtl as number | StringValue;
 
         return {
-          privateKey,
-          publicKey,
+          privateKey: jwtConfig.privateKey,
+          publicKey: jwtConfig.publicKey,
           signOptions: {
             algorithm: 'RS256',
             expiresIn,
@@ -83,4 +67,4 @@ function loadKey(path?: string, label?: string): string {
   ],
   exports: [AuthService],
 })
-export class AuthModule { }
+export class AuthModule {}

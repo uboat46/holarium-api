@@ -25,7 +25,7 @@ import { RolesGuard } from './guards/roles.guard';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(private readonly authService: AuthService) {}
 
   @Throttle({ default: { limit: 3, ttl: 3600_000 } })
   @Public()
@@ -43,7 +43,7 @@ export class AuthController {
     return this.authService.login(req.user as User, this.getContext(req));
   }
 
-  @Throttle({ default: { limit: 3, ttl: 60_000 } })
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Public()
   @Post('refresh')
   refresh(@Body() dto: RefreshTokenDto, @Req() req: Request) {
@@ -51,10 +51,7 @@ export class AuthController {
   }
 
   @Post('logout')
-  logout(
-    @CurrentUser() user: ActiveUserData,
-    @Body() dto: LogoutDto,
-  ): Promise<void> {
+  logout(@CurrentUser() user: ActiveUserData, @Body() dto: LogoutDto) {
     return this.authService.logout(user, dto);
   }
 

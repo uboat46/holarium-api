@@ -3,7 +3,6 @@ import { AppService } from './app.service';
 import { DataSource } from 'typeorm';
 import { Throttle } from '@nestjs/throttler';
 
-
 import { Public } from './auth/decorators/public.decorator';
 
 @Public()
@@ -12,7 +11,7 @@ export class AppController {
   constructor(
     private readonly appService: AppService,
     private readonly dataSource: DataSource,
-  ) { }
+  ) {}
 
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @Get()
@@ -32,11 +31,11 @@ export class AppController {
     try {
       await this.dataSource.query('SELECT 1');
       return { status: 'healthy', connected: true };
-    } catch (error) {
+    } catch {
+      // Don't expose error details to prevent information leakage
       return {
         status: 'unhealthy',
         connected: false,
-        error: `${error.message}`,
       };
     }
   }
