@@ -49,16 +49,7 @@ async function bootstrap() {
       allowedHeaders: corsConfig.allowedHeaders,
       exposedHeaders: corsConfig.exposedHeaders,
       maxAge: corsConfig.maxAge,
-      origin: (origin, callback) => {
-        console.log('==================== origin', origin);
-        console.log('==================== corsConfig.origins', corsConfig.origins);
-        console.log('==================== corsConfig.origins.includes(origin)', corsConfig.origins.includes(origin));
-        if (!origin || corsConfig.origins.includes(origin)) {
-          callback(null, true);
-        } else {
-          callback(new Error('Not allowed by CORS'), false);
-        }
-      },
+      origin: corsConfig.origins,
     };
     app.enableCors(corsOptions);
   }
