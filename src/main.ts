@@ -41,8 +41,6 @@ async function bootstrap() {
   app.use(helmet());
 
   if (corsConfig) {
-    console.log('==================== corsConfig', corsConfig);
-    console.log('==================== corsConfig.origins', corsConfig.origins);
     const corsOptions: CorsOptions = {
       credentials: corsConfig.credentials,
       methods: corsConfig.methods,
