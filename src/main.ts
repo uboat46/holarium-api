@@ -19,8 +19,6 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const corsConfig = configService.get<CorsConfig>('cors');
 
-  console.log('==================== process.env.*', process.env);
-
   // Enable API versioning
   app.enableVersioning({
     type: VersioningType.URI,
@@ -43,6 +41,8 @@ async function bootstrap() {
   app.use(helmet());
 
   if (corsConfig) {
+    console.log('==================== corsConfig', corsConfig);
+    console.log('==================== corsConfig.origins', corsConfig.origins);
     const corsOptions: CorsOptions = {
       credentials: corsConfig.credentials,
       methods: corsConfig.methods,
