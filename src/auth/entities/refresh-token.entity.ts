@@ -28,16 +28,16 @@ export class RefreshToken {
   @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @Column({ name: 'token_hash', type: 'varchar', length: 255 })
+  @Column({ name: 'token_hash', type: 'varchar', length: 512 })
   tokenHash: string;
 
   @Column({ name: 'token_family_id', type: 'uuid' })
   tokenFamilyId: string;
 
-  @Column({ type: 'varchar', length: 255, nullable: true })
+  @Column({ type: 'varchar', length: 512, nullable: true })
   device?: string | null;
 
-  @Column({ type: 'varchar', length: 255, nullable: true })
+  @Column({ type: 'varchar', length: 512, nullable: true })
   ip?: string | null;
 
   @Column({ name: 'expires_at', type: 'timestamp with time zone' })
