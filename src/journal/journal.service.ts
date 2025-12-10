@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { Log } from './entities/log.entity';
 import { Attribute } from './entities/attribute.entity';
+import { Summary } from './entities/summary.entity';
 import { VectorService } from './vector.service';
 import { LlmService } from './llm.service';
 
@@ -15,6 +16,8 @@ export class JournalService {
         private readonly logRepository: Repository<Log>,
         @InjectRepository(Attribute)
         private readonly attributeRepository: Repository<Attribute>,
+        @InjectRepository(Summary)
+        private readonly summaryRepository: Repository<Summary>,
         private readonly vectorService: VectorService,
         private readonly llmService: LlmService,
         private readonly dataSource: DataSource,
@@ -27,14 +30,22 @@ export class JournalService {
         const embedding = await this.vectorService.generateEmbedding(content);
 
         // 2. Context Retrieval (RAG)
-        const similarLogs = await this.vectorService.search(embedding, 3);
+        const similarLogs = await this.vectorService.search(embedding, 5);
         const context = similarLogs.map((log) => log.content);
         this.logger.log(
             `Found similar logs: ${similarLogs.map((l) => l.id).join(', ')}`,
         );
 
+        // Fetch recent summaries (Macro-Context)
+        const recentSummaries = await this.summaryRepository.find({
+            where: { userId },
+            order: { createdAt: 'DESC' },
+            take: 3,
+        });
+        const summaryContext = recentSummaries.map((s) => s.content);
+
         // 3. Analyze Content with LLM (with context)
-        const analysis = await this.llmService.analyzeLog(content, context);
+        const analysis = await this.llmService.analyzeLog(content, context, summaryContext);
 
         // 4. Transactional Save
         const queryRunner = this.dataSource.createQueryRunner();
@@ -94,5 +105,42 @@ export class JournalService {
             name: stat.name,
             value: parseInt(stat.value, 10),
         }));
+    }
+
+    async getTopEntities(userId: string): Promise<string[]> {
+        const result = await this.logRepository.query(
+            `
+      SELECT value, COUNT(*) as count
+      FROM logs, jsonb_array_elements_text(metadata->'entities') as value
+      WHERE metadata->'entities' IS NOT NULL
+      GROUP BY value
+      ORDER BY count DESC
+      LIMIT 10
+      `,
+        );
+        return result.map((row) => row.value);
+    }
+
+    async getEntityStats(userId: string, entityName: string): Promise<any[]> {
+        const logs = await this.logRepository
+            .createQueryBuilder('log')
+            .where('log.metadata @> :contains', {
+                contains: JSON.stringify({ entities: [entityName] }),
+            })
+            .orderBy('log.createdAt', 'ASC')
+            .getMany();
+
+        return logs.map((log) => {
+            const sentiment = log.metadata['sentiment'];
+            let score = 0;
+            if (sentiment === 'Positive') score = 1;
+            if (sentiment === 'Negative') score = -1;
+
+            return {
+                date: log.createdAt,
+                sentiment,
+                score,
+            };
+        });
     }
 }

@@ -20,6 +20,28 @@ export class SummaryService {
     async generateWeeklySummary(userId: string): Promise<Summary | null> {
         this.logger.log(`Generating weekly summary for user ${userId}`);
 
+        // 0. Check if a summary already exists for this week (last 7 days)
+        let summaryToUpdate = await this.summaryRepository.findOne({
+            where: {
+                userId,
+                type: SummaryType.WEEKLY,
+            },
+            order: { createdAt: 'DESC' },
+        });
+
+        if (summaryToUpdate) {
+            const now = new Date();
+            const diffTime = Math.abs(now.getTime() - summaryToUpdate.createdAt.getTime());
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays >= 7) {
+                // It's an old summary, so we don't update it. We'll create a new one.
+                summaryToUpdate = null;
+            } else {
+                this.logger.log(`Updating existing weekly summary for user ${userId}`);
+            }
+        }
+
         // 1. Fetch logs from the last 7 days
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -55,14 +77,18 @@ export class SummaryService {
         // I'll add a `generateSummary` method to LlmService in the next step.
         const summaryText = await this.llmService.generateSummary(logsContent);
 
-        // 3. Save Summary
-        const summary = this.summaryRepository.create({
-            userId,
-            content: summaryText,
-            period: 'Last 7 Days',
-            type: SummaryType.WEEKLY,
-        });
-
-        return this.summaryRepository.save(summary);
+        // 3. Save or Update Summary
+        if (summaryToUpdate) {
+            summaryToUpdate.content = summaryText;
+            return this.summaryRepository.save(summaryToUpdate);
+        } else {
+            const summary = this.summaryRepository.create({
+                userId,
+                content: summaryText,
+                period: 'Last 7 Days',
+                type: SummaryType.WEEKLY,
+            });
+            return this.summaryRepository.save(summary);
+        }
     }
 }

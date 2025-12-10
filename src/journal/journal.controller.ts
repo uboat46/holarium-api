@@ -4,6 +4,7 @@ import {
     Body,
     UseGuards,
     Get,
+    Param,
 } from '@nestjs/common';
 import { JournalService } from './journal.service';
 import { SummaryService } from './summary.service';
@@ -36,5 +37,18 @@ export class JournalController {
     @Post('summary/trigger')
     async triggerSummary(@CurrentUser() user: ActiveUserData) {
         return this.summaryService.generateWeeklySummary(user.userId);
+    }
+
+    @Get('entities')
+    async getTopEntities(@CurrentUser() user: ActiveUserData) {
+        return this.journalService.getTopEntities(user.userId);
+    }
+
+    @Get('entity/:name/stats')
+    async getEntityStats(
+        @CurrentUser() user: ActiveUserData,
+        @Param('name') name: string,
+    ) {
+        return this.journalService.getEntityStats(user.userId, name);
     }
 }

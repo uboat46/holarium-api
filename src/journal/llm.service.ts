@@ -27,15 +27,20 @@ export class LlmService {
         );
     }
 
-    async analyzeLog(content: string, context: string[] = []): Promise<AnalysisResult> {
+    async analyzeLog(content: string, context: string[] = [], summaries: string[] = []): Promise<AnalysisResult> {
         const contextString = context.length > 0
-            ? `\n**Context**:\nHere are similar past entries from the user's history:\n${context.join('\n---\n')}\n`
+            ? `\n**Context (Similar Past Entries)**:\n${context.join('\n---\n')}\n`
+            : '';
+
+        const summaryString = summaries.length > 0
+            ? `\n**Recent Weekly Summaries**:\n${summaries.join('\n---\n')}\n`
             : '';
 
         const systemPrompt = `You are the engine of 'Project Echo', a cognitive mirroring system. Your goal is to build a dynamic 'User Persona'—a gamified character sheet that reflects who the user *actually* is based on their actions, not just who they claim to be.
 
 **The Mission**:
 Analyze the user's daily log to uncover hidden behavioral patterns, emotional undertones, and habits. You are not just summarizing; you are quantifying their life into RPG-style attributes to help them level up.
+${summaryString}
 ${contextString}
 **The Attributes**:
 - **Willpower**: Discipline, resisting temptation, doing hard things.
