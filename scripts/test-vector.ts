@@ -1,7 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../src/app.module';
 import { VectorService } from '../src/journal/vector.service';
-import { JournalModule } from '../src/journal/journal.module';
 import { DataSource } from 'typeorm';
 import { Log } from '../src/journal/entities/log.entity';
 

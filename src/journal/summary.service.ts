@@ -58,6 +58,7 @@ export class SummaryService {
 
         const logs = await this.logRepository.find({
             where: {
+                userId,
                 createdAt: Between(sevenDaysAgo, new Date()),
             },
             order: { createdAt: 'ASC' },

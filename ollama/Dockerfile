@@ -16,7 +16,6 @@ ENV OLLAMA_KEEP_ALIVE=-1
 # Store the model weights in the container image
 ENV MODEL=snowflake-arctic-embed2:568m
 ENV CHAT_MODEL=gemma3:4b
-RUN echo $MODEL && echo $CHAT_MODEL
 RUN ollama serve & sleep 5 && ollama pull $MODEL
 RUN ollama serve & sleep 5 && ollama pull $CHAT_MODEL
 

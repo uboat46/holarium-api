@@ -55,6 +55,7 @@ export class JournalService {
         try {
             // Save Log
             const log = this.logRepository.create({
+                userId,
                 content,
                 embedding,
                 metadata: {
@@ -113,10 +114,12 @@ export class JournalService {
       SELECT value, COUNT(*) as count
       FROM logs, jsonb_array_elements_text(metadata->'entities') as value
       WHERE metadata->'entities' IS NOT NULL
+      AND user_id = $1
       GROUP BY value
       ORDER BY count DESC
       LIMIT 10
       `,
+            [userId],
         );
         return result.map((row) => row.value);
     }
@@ -124,7 +127,8 @@ export class JournalService {
     async getEntityStats(userId: string, entityName: string): Promise<any[]> {
         const logs = await this.logRepository
             .createQueryBuilder('log')
-            .where('log.metadata @> :contains', {
+            .where('log.userId = :userId', { userId })
+            .andWhere('log.metadata @> :contains', {
                 contains: JSON.stringify({ entities: [entityName] }),
             })
             .orderBy('log.createdAt', 'ASC')
