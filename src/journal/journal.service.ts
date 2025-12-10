@@ -26,10 +26,17 @@ export class JournalService {
         // 1. Generate Embedding
         const embedding = await this.vectorService.generateEmbedding(content);
 
-        // 2. Analyze Content with LLM
-        const analysis = await this.llmService.analyzeLog(content);
+        // 2. Context Retrieval (RAG)
+        const similarLogs = await this.vectorService.search(embedding, 3);
+        const context = similarLogs.map((log) => log.content);
+        this.logger.log(
+            `Found similar logs: ${similarLogs.map((l) => l.id).join(', ')}`,
+        );
 
-        // 3. Transactional Save
+        // 3. Analyze Content with LLM (with context)
+        const analysis = await this.llmService.analyzeLog(content, context);
+
+        // 4. Transactional Save
         const queryRunner = this.dataSource.createQueryRunner();
         await queryRunner.connect();
         await queryRunner.startTransaction();

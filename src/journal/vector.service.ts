@@ -1,15 +1,24 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { DataSource } from 'typeorm';
 
 @Injectable()
 export class VectorService {
     private readonly logger = new Logger(VectorService.name);
     private readonly ollamaHost: string;
+    private readonly model: string;
 
-    constructor(private readonly configService: ConfigService) {
+    constructor(
+        private readonly configService: ConfigService,
+        private readonly dataSource: DataSource,
+    ) {
         this.ollamaHost = this.configService.get<string>(
             'OLLAMA_HOST',
             'http://ollama:8080',
+        );
+        this.model = this.configService.get<string>(
+            'MODEL',
+            'snowflake-arctic-embed2:568m',
         );
     }
 
@@ -21,7 +30,7 @@ export class VectorService {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    model: 'snowflake-arctic-embed2:568m',
+                    model: this.model,
                     prompt: text,
                 }),
             });
@@ -36,5 +45,13 @@ export class VectorService {
             this.logger.error(`Failed to generate embedding: ${error.message}`);
             throw error;
         }
+    }
+
+    async search(embedding: number[], limit: number = 3): Promise<any[]> {
+        const embeddingString = JSON.stringify(embedding);
+        return this.dataSource.query(
+            `SELECT * FROM logs ORDER BY embedding <=> $1 LIMIT $2`,
+            [embeddingString, limit],
+        );
     }
 }

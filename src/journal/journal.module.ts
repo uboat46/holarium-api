@@ -6,12 +6,13 @@ import { Summary } from './entities/summary.entity';
 import { VectorService } from './vector.service';
 import { LlmService } from './llm.service';
 import { JournalService } from './journal.service';
+import { SummaryService } from './summary.service';
 import { JournalController } from './journal.controller';
 
 @Module({
     imports: [TypeOrmModule.forFeature([Log, Attribute, Summary])],
     controllers: [JournalController],
-    providers: [JournalService, VectorService, LlmService],
-    exports: [JournalService, VectorService, LlmService],
+    providers: [JournalService, VectorService, LlmService, SummaryService],
+    exports: [JournalService, VectorService, LlmService, SummaryService],
 })
 export class JournalModule { }

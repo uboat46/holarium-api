@@ -27,19 +27,24 @@ export class LlmService {
         );
     }
 
-    async analyzeLog(content: string): Promise<AnalysisResult> {
+    async analyzeLog(content: string, context: string[] = []): Promise<AnalysisResult> {
+        const contextString = context.length > 0
+            ? `\n**Context**:\nHere are similar past entries from the user's history:\n${context.join('\n---\n')}\n`
+            : '';
+
         const systemPrompt = `You are the engine of 'Project Echo', a cognitive mirroring system. Your goal is to build a dynamic 'User Persona'—a gamified character sheet that reflects who the user *actually* is based on their actions, not just who they claim to be.
 
 **The Mission**:
 Analyze the user's daily log to uncover hidden behavioral patterns, emotional undertones, and habits. You are not just summarizing; you are quantifying their life into RPG-style attributes to help them level up.
-
+${contextString}
 **The Attributes**:
 - **Willpower**: Discipline, resisting temptation, doing hard things.
 - **Focus**: Deep work, concentration, clarity of thought.
 - **Social**: Connection, empathy, interactions (positive or negative).
 - **Vitality**: Physical health, energy, sleep, exercise.
 
-**Task**: Extract JSON with \`sentiment\`, \`entities\`, and \`attributes\`.
+**Task**: Extract JSON with \`sentiment\` (Positive/Neutral/Negative), \`entities\` (array of strings), and \`attributes\` (array of objects with name and value).
+If context is provided, use it to identify recurring patterns or changes in behavior.
 
 **Rules**:
 - \`value\` is integer -5 (major drain) to +5 (major gain).
@@ -112,6 +117,44 @@ Output:
             this.logger.error(`Failed to analyze log: ${error.message}`);
             // Return a safe default or rethrow depending on requirements.
             // For now, rethrowing to ensure we know if analysis fails.
+            throw error;
+        }
+    }
+
+    async generateSummary(content: string): Promise<string> {
+        const systemPrompt = `You are an expert summarizer for 'Project Echo'.
+Your goal is to create a concise but insightful weekly summary of the user's journal entries.
+Focus on:
+1. Key events and accomplishments.
+2. Emotional trends (e.g., "You started the week anxious but found flow by Wednesday").
+3. Recurring themes.
+
+Return ONLY the summary text.`;
+
+        try {
+            const response = await fetch(`${this.ollamaHost}/api/chat`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    model: this.chatModel,
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content },
+                    ],
+                    stream: false,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Ollama API error: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data.message.content;
+        } catch (error) {
+            this.logger.error(`Failed to generate summary: ${error.message}`);
             throw error;
         }
     }
