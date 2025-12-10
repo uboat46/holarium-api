@@ -13,7 +13,7 @@ x-pgadmin-public-port: &PGADMIN_PUBLIC_PORT 5050
 services:
   # PostgreSQL Database
   *POSTGRES_SERVICE_NAME :
-    image: postgres:17-alpine
+    image: pgvector/pgvector:pg17
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USER}
@@ -128,6 +128,7 @@ services:
       # URLs
       # FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
       # API_URL: ${API_URL:-http://localhost:3000}
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://ollama:8080}
     volumes:
       # Mount source code for hot reloading
       - .:/app
@@ -169,6 +170,23 @@ services:
   #   profiles:
   #     - tools
 
+  # Ollama Service
+  ollama:
+    build:
+      context: ./ollama
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "11434:8080" # Map container port 8080 to host 11434 (standard Ollama port)
+    environment:
+      - MODEL=snowflake-arctic-embed2:568m
+      - PORT=8080
+    volumes:
+      - ./ollama/models:/models
+      - ollama_data:/root/.ollama
+    networks:
+      - *BACKEND_NETWORK
+
 networks:
   *BACKEND_NETWORK :
     driver: bridge
@@ -184,3 +202,4 @@ volumes:
   # node_modules:
   #   name: ${NODE_MODULES_VOLUME}
   #   driver: local
+  ollama_data:
