@@ -18,6 +18,7 @@ import { AuthModule } from './auth/auth.module';
 import { CryptoModule } from './common/crypto/crypto.module';
 import { LoggerModule } from './common/logger/logger.module';
 import { JournalModule } from './journal/journal.module';
+import { CloudTasksModule } from './cloud-tasks/cloud-tasks.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { JournalModule } from './journal/journal.module';
     UsersModule,
     AuthModule,
     JournalModule,
+    CloudTasksModule,
   ],
   controllers: [AppController],
   providers: [

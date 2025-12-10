@@ -1,5 +1,5 @@
 services:
-  snowflake-arctic-embed2:
+  ollama:
     build:
       context: .
       dockerfile: Dockerfile

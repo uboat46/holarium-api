@@ -11,6 +11,7 @@ import { SummaryService } from './summary.service';
 import { CreateEntryDto } from './dto/create-entry.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Public } from '../auth/decorators/public.decorator';
 import type { ActiveUserData } from '../auth/interfaces/active-user-data.interface';
 
 @Controller('journal')
@@ -50,5 +51,25 @@ export class JournalController {
         @Param('name') name: string,
     ) {
         return this.journalService.getEntityStats(user.userId, name);
+    }
+
+    // --- Cloud Tasks Orchestration ---
+
+    @Public()
+    @Post('summary/cron-trigger')
+    async triggerBatchSummaries() {
+        return this.summaryService.initiateBatchSummaries();
+    }
+
+    @Public()
+    @Post('summary/batch-process')
+    async processBatch(@Body() body: { batchId: string; lastId: string; limit: number }) {
+        return this.summaryService.processBatch(body.batchId, body.lastId, body.limit);
+    }
+
+    @Public()
+    @Post('summary/process')
+    async processSummaryTask(@Body() body: { jobId: string; userId: string }) {
+        return this.summaryService.processSummaryTask(body.jobId, body.userId);
     }
 }

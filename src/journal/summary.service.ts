@@ -3,7 +3,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { Summary, SummaryType } from './entities/summary.entity';
 import { Log } from './entities/log.entity';
+import { SummaryJob, JobStatus } from './entities/summary-job.entity';
+import { SummaryJobBatch, BatchStatus } from './entities/summary-job-batch.entity';
 import { LlmService } from './llm.service';
+import { UsersService } from '../users/users.service';
+import { CloudTasksService } from '../cloud-tasks/cloud-tasks.service';
 
 @Injectable()
 export class SummaryService {
@@ -14,7 +18,13 @@ export class SummaryService {
         private readonly summaryRepository: Repository<Summary>,
         @InjectRepository(Log)
         private readonly logRepository: Repository<Log>,
+        @InjectRepository(SummaryJob)
+        private readonly summaryJobRepository: Repository<SummaryJob>,
+        @InjectRepository(SummaryJobBatch)
+        private readonly summaryJobBatchRepository: Repository<SummaryJobBatch>,
         private readonly llmService: LlmService,
+        private readonly usersService: UsersService,
+        private readonly cloudTasksService: CloudTasksService,
     ) { }
 
     async generateWeeklySummary(userId: string): Promise<Summary | null> {
@@ -89,6 +99,100 @@ export class SummaryService {
                 type: SummaryType.WEEKLY,
             });
             return this.summaryRepository.save(summary);
+        }
+    }
+
+    async initiateBatchSummaries() {
+        this.logger.log('Initiating batch summary generation');
+
+        // 1. Create a new Batch record
+        const batch = this.summaryJobBatchRepository.create({
+            status: BatchStatus.IN_PROGRESS,
+        });
+        await this.summaryJobBatchRepository.save(batch);
+
+        // 2. Start with the first batch (using UUID 0 as the starting point)
+        await this.cloudTasksService.createTask(
+            {
+                batchId: batch.id,
+                lastId: '00000000-0000-0000-0000-000000000000',
+                limit: 100
+            },
+            '/api/v1/journal/summary/batch-process',
+        );
+
+        return { message: 'Batch processing initiated', batchId: batch.id };
+    }
+
+    async processBatch(batchId: string, lastId: string, limit: number) {
+        this.logger.log(`Processing batch: batchId=${batchId}, lastId=${lastId}, limit=${limit}`);
+
+        // 1. Fetch users using Keyset Pagination
+        const users = await this.usersService.findUsersDueForSummary(lastId, limit);
+
+        if (users.length === 0) {
+            this.logger.log('Batch processing complete: No more users');
+            // Mark batch as completed
+            await this.summaryJobBatchRepository.update(batchId, {
+                status: BatchStatus.COMPLETED,
+                completedAt: new Date(),
+            });
+            return;
+        }
+
+        // 2. Enqueue individual tasks for this batch
+        for (const user of users) {
+            // Create a Job record
+            const job = this.summaryJobRepository.create({
+                batchId,
+                userId: user.id,
+                status: JobStatus.PENDING,
+            });
+            await this.summaryJobRepository.save(job);
+
+            // Enqueue task
+            await this.cloudTasksService.createTask(
+                { jobId: job.id, userId: user.id },
+                '/api/v1/journal/summary/process',
+            );
+        }
+
+        // 3. Recursively enqueue the next batch
+        // We always try to fetch more if we got any results, or strictly if we got a full page.
+        // Since we filter by 'due', the set might shrink if we were using offset, but with keyset we just move forward.
+        const nextLastId = users[users.length - 1].id;
+        await this.cloudTasksService.createTask(
+            { batchId, lastId: nextLastId, limit },
+            '/api/v1/journal/summary/batch-process',
+        );
+    }
+
+    async processSummaryTask(jobId: string, userId: string) {
+        this.logger.log(`Processing summary task: jobId=${jobId}, userId=${userId}`);
+
+        // 1. Update Job to PROCESSING
+        await this.summaryJobRepository.update(jobId, {
+            status: JobStatus.PROCESSING,
+        });
+
+        try {
+            // 2. Generate Summary
+            await this.generateWeeklySummary(userId);
+
+            // 3. Update User's lastSummaryAt
+            await this.usersService.updateLastSummaryAt(userId);
+
+            // 4. Update Job to COMPLETED
+            await this.summaryJobRepository.update(jobId, {
+                status: JobStatus.COMPLETED,
+            });
+        } catch (error) {
+            this.logger.error(`Failed to process summary for user ${userId}: ${error.message}`);
+            // 5. Update Job to FAILED
+            await this.summaryJobRepository.update(jobId, {
+                status: JobStatus.FAILED,
+                errorMessage: error.message,
+            });
         }
     }
 }
