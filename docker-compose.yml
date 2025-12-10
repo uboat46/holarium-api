@@ -180,6 +180,7 @@ services:
       - "11434:8080" # Map container port 8080 to host 11434 (standard Ollama port)
     environment:
       - MODEL=snowflake-arctic-embed2:568m
+      - CHAT_MODEL=gemma3:4b
       - PORT=8080
     volumes:
       - ./ollama/models:/models
