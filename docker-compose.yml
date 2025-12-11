@@ -183,7 +183,6 @@ services:
       - CHAT_MODEL=gemma3:4b
       - PORT=8080
     volumes:
-      - ./ollama/models:/models
       - ollama_data:/root/.ollama
     networks:
       - *BACKEND_NETWORK

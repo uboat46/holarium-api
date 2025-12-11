@@ -1,14 +1,14 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class CreateJournalTables1765305364208 implements MigrationInterface {
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        // Create Logs table
-        await queryRunner.query(`
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    // Create Logs table
+    await queryRunner.query(`
       CREATE TABLE "logs" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "user_id" uuid NOT NULL,
         "content" text NOT NULL,
-        "embedding" vector,
+        "embedding" vector(1024),
         "metadata" jsonb NOT NULL DEFAULT '{}',
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
@@ -16,8 +16,8 @@ export class CreateJournalTables1765305364208 implements MigrationInterface {
       )
     `);
 
-        // Create Attributes table
-        await queryRunner.query(`
+    // Create Attributes table
+    await queryRunner.query(`
       CREATE TABLE "attributes" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "user_id" uuid NOT NULL,
@@ -29,12 +29,12 @@ export class CreateJournalTables1765305364208 implements MigrationInterface {
       )
     `);
 
-        // Create Summaries table
-        await queryRunner.query(`
+    // Create Summaries table
+    await queryRunner.query(`
       CREATE TYPE "public"."summaries_type_enum" AS ENUM('WEEKLY', 'MONTHLY')
     `);
 
-        await queryRunner.query(`
+    await queryRunner.query(`
       CREATE TABLE "summaries" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "user_id" uuid NOT NULL,
@@ -46,38 +46,38 @@ export class CreateJournalTables1765305364208 implements MigrationInterface {
       )
     `);
 
-        // Add Foreign Keys
-        await queryRunner.query(`
+    // Add Foreign Keys
+    await queryRunner.query(`
       ALTER TABLE "logs" 
       ADD CONSTRAINT "FK_logs_userId" 
       FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION
     `);
 
-        await queryRunner.query(`
+    await queryRunner.query(`
       ALTER TABLE "attributes" 
       ADD CONSTRAINT "FK_attributes_userId" 
       FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION
     `);
 
-        await queryRunner.query(`
+    await queryRunner.query(`
       ALTER TABLE "summaries" 
       ADD CONSTRAINT "FK_summaries_userId" 
       FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION
     `);
 
-        // Create HNSW Index for Vector Search
-        await queryRunner.query(`
+    // Create HNSW Index for Vector Search
+    await queryRunner.query(`
       CREATE INDEX ON "logs" USING hnsw ("embedding" vector_cosine_ops);
     `);
-    }
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`ALTER TABLE "summaries" DROP CONSTRAINT "FK_summaries_userId"`);
-        await queryRunner.query(`ALTER TABLE "attributes" DROP CONSTRAINT "FK_attributes_userId"`);
-        await queryRunner.query(`ALTER TABLE "logs" DROP CONSTRAINT "FK_logs_userId"`);
-        await queryRunner.query(`DROP TABLE "summaries"`);
-        await queryRunner.query(`DROP TYPE "public"."summaries_type_enum"`);
-        await queryRunner.query(`DROP TABLE "attributes"`);
-        await queryRunner.query(`DROP TABLE "logs"`);
-    }
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`ALTER TABLE "summaries" DROP CONSTRAINT "FK_summaries_userId"`);
+    await queryRunner.query(`ALTER TABLE "attributes" DROP CONSTRAINT "FK_attributes_userId"`);
+    await queryRunner.query(`ALTER TABLE "logs" DROP CONSTRAINT "FK_logs_userId"`);
+    await queryRunner.query(`DROP TABLE "summaries"`);
+    await queryRunner.query(`DROP TYPE "public"."summaries_type_enum"`);
+    await queryRunner.query(`DROP TABLE "attributes"`);
+    await queryRunner.query(`DROP TABLE "logs"`);
+  }
 }
