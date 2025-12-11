@@ -1,34 +1,29 @@
 steps:
-  # Step 1: Build the Docker image
   - name: gcr.io/cloud-builders/docker
     args:
       - build
       - '--no-cache'
       - '-t'
-      - '$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA'
-      - '-t'
-      - '$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:latest'
+      - >-
+        $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
       - .
       - '-f'
       - Dockerfile
     id: Build
-
-  # Step 2: Push the image to Artifact Registry
   - name: gcr.io/cloud-builders/docker
     args:
       - push
-      - '--all-tags'
-      - '$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME'
+      - >-
+        $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
     id: Push
-
-  # Step 3: Deploy to Cloud Run with GPU
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:slim'
     args:
       - run
       - deploy
       - $_SERVICE_NAME
       - '--platform=managed'
-      - '--image=$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA'
+      - >-
+        --image=$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
       - '--region=$_DEPLOY_REGION'
       # GPU Configuration
       - '--gpu=1'
@@ -39,12 +34,12 @@ steps:
       - '--cpu=8'
       - '--timeout=300'
       - '--concurrency=50'
-      - '--max-instances=5'
-      - '--min-instances=0'
+      - '--concurrency=50'
+      - '--no-cpu-throttling'
       - '--no-cpu-throttling'
       - '--execution-environment=gen2'
       - '--port=8080'
-      # Ollama-specific environment variables for better performance
+      # Ollama-specific environment variables
       - '--set-env-vars=OLLAMA_NUM_PARALLEL=4'
       - '--set-env-vars=OLLAMA_NUM_THREAD=8'
       - '--set-env-vars=OLLAMA_KEEP_ALIVE=5m'
@@ -55,21 +50,19 @@ steps:
       - '--set-env-vars=OMP_NUM_THREADS=8'
       - '--set-env-vars=CUDA_VISIBLE_DEVICES=0'
       # Labels
-      - '--labels=managed-by=gcp-cloud-build-deploy-cloud-run,commit-sha=$COMMIT_SHA,gcb-build-id=$BUILD_ID,deployment-type=gpu'
+      - >-
+        --labels=managed-by=gcp-cloud-build-deploy-cloud-run,commit-sha=$COMMIT_SHA,gcb-build-id=$BUILD_ID,deployment-type=gpu
       - '--no-allow-unauthenticated'
       - '--quiet'
     id: Deploy-GPU
     entrypoint: gcloud
-
 images:
-  - '$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA'
-  - '$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:latest'
-
+  - >-
+    $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
 options:
   substitutionOption: ALLOW_LOOSE
   logging: CLOUD_LOGGING_ONLY
   machineType: E2_HIGHCPU_8
-
 substitutions:
   _AR_HOSTNAME: us-central1-docker.pkg.dev
   _AR_REPOSITORY: cloud-run-source-deploy
@@ -77,11 +70,9 @@ substitutions:
   _PLATFORM: managed
   _SERVICE_NAME: holarium-ollama
   _DEPLOY_REGION: us-central1
-
 tags:
   - gcp-cloud-build-deploy-cloud-run
   - gcp-cloud-build-deploy-cloud-run-managed
   - holarium-ollama
   - gpu-deployment
-
 timeout: 1800s
