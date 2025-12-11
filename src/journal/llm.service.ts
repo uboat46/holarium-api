@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { GcpAuthService } from '../common/gcp-auth.service';
 
 export interface AnalysisResult {
     sentiment: 'Positive' | 'Neutral' | 'Negative';
@@ -16,7 +17,10 @@ export class LlmService {
     private readonly ollamaHost: string;
     private readonly chatModel: string;
 
-    constructor(private readonly configService: ConfigService) {
+    constructor(
+        private readonly configService: ConfigService,
+        private readonly gcpAuthService: GcpAuthService,
+    ) {
         this.ollamaHost = this.configService.get<string>(
             'OLLAMA_HOST',
             'http://ollama:8080',
@@ -82,11 +86,17 @@ Output:
 }`;
 
         try {
+            const token = await this.gcpAuthService.getIdToken(this.ollamaHost);
+            const headers: any = {
+                'Content-Type': 'application/json',
+            };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
             const response = await fetch(`${this.ollamaHost}/api/chat`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers,
                 body: JSON.stringify({
                     model: this.chatModel,
                     messages: [
@@ -137,11 +147,17 @@ Focus on:
 Return ONLY the summary text.`;
 
         try {
+            const token = await this.gcpAuthService.getIdToken(this.ollamaHost);
+            const headers: any = {
+                'Content-Type': 'application/json',
+            };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
             const response = await fetch(`${this.ollamaHost}/api/chat`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers,
                 body: JSON.stringify({
                     model: this.chatModel,
                     messages: [

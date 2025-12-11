@@ -42,7 +42,7 @@ steps:
       - '--set-env-vars=OLLAMA_NUM_THREAD=8'
       - '--set-env-vars=OLLAMA_KEEP_ALIVE=5m'
       - '--set-env-vars=OLLAMA_MAX_QUEUE=100'
-      - '--set-env-vars=OLLAMA_HOST=0.0.0.0'
+      - '--set-env-vars=OLLAMA_HOST=0.0.0.0:8080'
       - '--set-env-vars=OLLAMA_ORIGINS=*'
       - '--set-env-vars=GOMAXPROCS=8'
       - '--set-env-vars=OMP_NUM_THREADS=8'

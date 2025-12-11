@@ -11,6 +11,7 @@ import { LlmService } from './llm.service';
 import { JournalService } from './journal.service';
 import { SummaryService } from './summary.service';
 import { JournalController } from './journal.controller';
+import { GcpAuthService } from '../common/gcp-auth.service';
 
 @Module({
     imports: [
@@ -18,7 +19,7 @@ import { JournalController } from './journal.controller';
         UsersModule,
     ],
     controllers: [JournalController],
-    providers: [JournalService, VectorService, LlmService, SummaryService],
+    providers: [JournalService, VectorService, LlmService, SummaryService, GcpAuthService],
     exports: [JournalService, VectorService, LlmService, SummaryService],
 })
 export class JournalModule { }

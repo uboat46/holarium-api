@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
+import { GcpAuthService } from '../common/gcp-auth.service';
 
 @Injectable()
 export class VectorService {
@@ -11,6 +12,7 @@ export class VectorService {
     constructor(
         private readonly configService: ConfigService,
         private readonly dataSource: DataSource,
+        private readonly gcpAuthService: GcpAuthService,
     ) {
         this.ollamaHost = this.configService.get<string>(
             'OLLAMA_HOST',
@@ -24,11 +26,17 @@ export class VectorService {
 
     async generateEmbedding(text: string): Promise<number[]> {
         try {
+            const token = await this.gcpAuthService.getIdToken(this.ollamaHost);
+            const headers: any = {
+                'Content-Type': 'application/json',
+            };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
             const response = await fetch(`${this.ollamaHost}/api/embeddings`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers,
                 body: JSON.stringify({
                     model: this.model,
                     prompt: text,
