@@ -42,7 +42,7 @@ export class SummaryService {
         if (summaryToUpdate) {
             const now = new Date();
             const diffTime = Math.abs(now.getTime() - summaryToUpdate.createdAt.getTime());
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
             if (diffDays >= 7) {
                 // It's an old summary, so we don't update it. We'll create a new one.

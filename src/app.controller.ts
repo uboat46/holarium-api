@@ -11,7 +11,7 @@ export class AppController {
   constructor(
     private readonly appService: AppService,
     private readonly dataSource: DataSource,
-  ) {}
+  ) { }
 
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @Get()

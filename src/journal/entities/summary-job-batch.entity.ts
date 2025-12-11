@@ -20,6 +20,7 @@ export class SummaryJobBatch {
     id: string;
 
     @Column({
+        name: 'status',
         type: 'enum',
         enum: BatchStatus,
         default: BatchStatus.IN_PROGRESS,
@@ -29,11 +30,12 @@ export class SummaryJobBatch {
     @OneToMany(() => SummaryJob, (job) => job.batch)
     jobs: SummaryJob[];
 
-    @CreateDateColumn({ name: 'started_at', type: 'timestamp with time zone' })
-    startedAt: Date;
 
     @Column({ name: 'completed_at', type: 'timestamp with time zone', nullable: true })
     completedAt: Date;
+
+    @CreateDateColumn({ name: 'started_at', type: 'timestamp with time zone' })
+    startedAt: Date;
 
     @UpdateDateColumn({ name: 'updated_at', type: 'timestamp with time zone' })
     updatedAt: Date;

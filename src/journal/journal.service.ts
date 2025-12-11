@@ -30,7 +30,7 @@ export class JournalService {
         const embedding = await this.vectorService.generateEmbedding(content);
 
         // 2. Context Retrieval (RAG)
-        const similarLogs = await this.vectorService.search(embedding, 5);
+        const similarLogs = await this.vectorService.search(userId, embedding, 5);
         const context = similarLogs.map((log) => log.content);
         this.logger.log(
             `Found similar logs: ${similarLogs.map((l) => l.id).join(', ')}`,

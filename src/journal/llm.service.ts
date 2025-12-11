@@ -99,7 +99,7 @@ Output:
             });
 
             if (!response.ok) {
-                throw new Error(`Ollama API error: ${response.statusText}`);
+                throw new Error(`Ollama API error: ${response.status} - ${response.statusText}`);
             }
 
             const data = await response.json();
@@ -153,7 +153,7 @@ Return ONLY the summary text.`;
             });
 
             if (!response.ok) {
-                throw new Error(`Ollama API error: ${response.statusText}`);
+                throw new Error(`Ollama API error: ${response.status} - ${response.statusText}`);
             }
 
             const data = await response.json();

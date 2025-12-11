@@ -13,10 +13,11 @@ export class Log {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
-    @Column({ type: 'text' })
+    @Column({ name: 'content', type: 'text' })
     content: string;
 
     @Column({
+        name: 'embedding',
         type: 'varchar',
         nullable: true,
         transformer: {
@@ -26,13 +27,13 @@ export class Log {
     })
     embedding: number[];
 
-    @Column({ type: 'jsonb', default: {} })
+    @Column({ name: 'metadata', type: 'jsonb', default: {} })
     metadata: Record<string, any>;
 
     @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
     createdAt: Date;
 
-    @Column({ name: 'updated_at', type: 'timestamp with time zone' })
+    @UpdateDateColumn({ name: 'updated_at', type: 'timestamp with time zone' })
     updatedAt: Date;
 
     @Column({ name: 'user_id', nullable: true })

@@ -32,6 +32,7 @@ export class SummaryJob {
     userId: string;
 
     @Column({
+        name: 'status',
         type: 'enum',
         enum: JobStatus,
         default: JobStatus.PENDING,

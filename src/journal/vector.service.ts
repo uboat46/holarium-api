@@ -36,7 +36,7 @@ export class VectorService {
             });
 
             if (!response.ok) {
-                throw new Error(`Ollama API error: ${response.statusText}`);
+                throw new Error(`Ollama API error: ${response.status} - ${response.statusText}`);
             }
 
             const data = await response.json();
@@ -47,11 +47,11 @@ export class VectorService {
         }
     }
 
-    async search(embedding: number[], limit: number = 3): Promise<any[]> {
+    async search(userId: string, embedding: number[], limit: number = 3): Promise<any[]> {
         const embeddingString = JSON.stringify(embedding);
         return this.dataSource.query(
-            `SELECT * FROM logs ORDER BY embedding <=> $1 LIMIT $2`,
-            [embeddingString, limit],
+            `SELECT * FROM logs WHERE user_id = $1 ORDER BY embedding <=> $2 LIMIT $3`,
+            [userId, embeddingString, limit],
         );
     }
 }

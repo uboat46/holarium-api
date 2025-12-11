@@ -13,21 +13,21 @@ export class Attribute {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
+    @Column({ name: 'name', type: 'varchar' })
+    name: string;
+
+    @Column({ name: 'value', type: 'int' })
+    value: number;
+
+    @Column({ name: 'date', type: 'date' })
+    date: Date;
+
     @Column({ name: 'user_id' })
     userId: string;
 
     @ManyToOne(() => User, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'user_id' })
     user: User;
-
-    @Column({ type: 'varchar' })
-    name: string;
-
-    @Column({ type: 'int' })
-    value: number;
-
-    @Column({ type: 'date' })
-    date: Date;
 
     @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
     createdAt: Date;
