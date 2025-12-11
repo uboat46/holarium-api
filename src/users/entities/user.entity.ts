@@ -79,6 +79,13 @@ export class User {
   })
   lockedUntil?: Date | null;
 
+  @Column({
+    name: 'last_summary_at',
+    type: 'timestamp with time zone',
+    nullable: true,
+  })
+  lastSummaryAt?: Date | null;
+
   @OneToMany(() => RefreshToken, (token) => token.user)
   refreshTokens: RefreshToken[];
 

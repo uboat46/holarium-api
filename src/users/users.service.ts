@@ -53,6 +53,36 @@ export class UsersService {
     return qb.getMany();
   }
 
+  async findAllPaginated(skip: number, limit: number): Promise<User[]> {
+    return this.usersRepository.find({
+      skip,
+      take: limit,
+      order: { id: 'ASC' },
+    });
+  }
+
+  async findUsersDueForSummary(lastId: string, limit: number): Promise<User[]> {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    return this.usersRepository
+      .createQueryBuilder('user')
+      .where('user.id > :lastId', { lastId })
+      .andWhere(
+        '(user.last_summary_at IS NULL OR user.last_summary_at < :sevenDaysAgo)',
+        { sevenDaysAgo },
+      )
+      .orderBy('user.id', 'ASC')
+      .take(limit)
+      .getMany();
+  }
+
+  async updateLastSummaryAt(userId: string): Promise<void> {
+    await this.usersRepository.update(userId, {
+      lastSummaryAt: new Date(),
+    });
+  }
+
   async findOne(id: string): Promise<User> {
     const user = await this.usersRepository.findOne({ where: { id } });
     if (!user) {
