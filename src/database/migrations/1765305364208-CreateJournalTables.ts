@@ -6,6 +6,7 @@ export class CreateJournalTables1765305364208 implements MigrationInterface {
         await queryRunner.query(`
       CREATE TABLE "logs" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "user_id" uuid NOT NULL,
         "content" text NOT NULL,
         "embedding" vector,
         "metadata" jsonb NOT NULL DEFAULT '{}',
@@ -47,6 +48,12 @@ export class CreateJournalTables1765305364208 implements MigrationInterface {
 
         // Add Foreign Keys
         await queryRunner.query(`
+      ALTER TABLE "logs" 
+      ADD CONSTRAINT "FK_logs_userId" 
+      FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION
+    `);
+
+        await queryRunner.query(`
       ALTER TABLE "attributes" 
       ADD CONSTRAINT "FK_attributes_userId" 
       FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION
@@ -57,11 +64,17 @@ export class CreateJournalTables1765305364208 implements MigrationInterface {
       ADD CONSTRAINT "FK_summaries_userId" 
       FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION
     `);
+
+        // Create HNSW Index for Vector Search
+        await queryRunner.query(`
+      CREATE INDEX ON "logs" USING hnsw ("embedding" vector_cosine_ops);
+    `);
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`ALTER TABLE "summaries" DROP CONSTRAINT "FK_summaries_userId"`);
         await queryRunner.query(`ALTER TABLE "attributes" DROP CONSTRAINT "FK_attributes_userId"`);
+        await queryRunner.query(`ALTER TABLE "logs" DROP CONSTRAINT "FK_logs_userId"`);
         await queryRunner.query(`DROP TABLE "summaries"`);
         await queryRunner.query(`DROP TYPE "public"."summaries_type_enum"`);
         await queryRunner.query(`DROP TABLE "attributes"`);
