@@ -21,8 +21,8 @@ export class GcpAuthService {
             if (!this.client) {
                 this.client = await this.auth.getIdTokenClient(targetAudience);
             }
-            // The IdTokenClient has a fetchIdToken method
-            const token = await this.client.fetchIdToken(targetAudience);
+            // The IdTokenClient has an idTokenProvider property which has the fetchIdToken method
+            const token = await this.client.idTokenProvider.fetchIdToken(targetAudience);
             return token;
         } catch (error) {
             this.logger.error(`Failed to generate ID token for ${targetAudience}: ${error.message}`);
