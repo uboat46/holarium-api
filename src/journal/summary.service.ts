@@ -112,7 +112,6 @@ export class SummaryService {
         // For now, to keep it simple and within the current LlmService structure, 
         // I'll add a `generateSummary` method to LlmService in the next step.
         console.log('Generating summary for user', userId);
-        console.log('=============== Logs content: ================', logsContent);
         const summaryText = await this.llmService.generateSummary(logsContent);
 
         // 3. Save or Update Summary
