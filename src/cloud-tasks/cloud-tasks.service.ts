@@ -14,13 +14,13 @@ export class CloudTasksService {
         }
     }
 
-    async createTask(payload: any, endpoint: string) {
+    async createTask(payload: any, endpoint: string, queueName?: string) {
         const isDev = process.env.NODE_ENV === 'development';
 
         if (isDev) {
             return this.createLocalTask(payload, endpoint);
         } else {
-            return this.createCloudTask(payload, endpoint);
+            return this.createCloudTask(payload, endpoint, queueName);
         }
     }
 
@@ -43,9 +43,9 @@ export class CloudTasksService {
         }
     }
 
-    private async createCloudTask(payload: any, endpoint: string) {
+    private async createCloudTask(payload: any, endpoint: string, queueName?: string) {
         const project = process.env.GCP_PROJECT_ID;
-        const queue = process.env.GCP_QUEUE_NAME;
+        const queue = queueName || process.env.GCP_QUEUE_NAME;
         const location = process.env.GCP_LOCATION;
         const apiUrl = process.env.API_URL;
 
@@ -71,7 +71,7 @@ export class CloudTasksService {
             },
         };
 
-        this.logger.log(`Enqueuing Cloud Task to ${url}`);
+        this.logger.log(`Enqueuing Cloud Task to ${url} (Queue: ${queue})`);
         const [response] = await this.client.createTask({ parent, task });
         this.logger.log(`Task created: ${response.name}`);
     }

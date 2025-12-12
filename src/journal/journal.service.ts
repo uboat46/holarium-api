@@ -1,12 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, Repository, In } from 'typeorm';
 import { Log } from './entities/log.entity';
 import { Attribute } from './entities/attribute.entity';
 import { Summary } from './entities/summary.entity';
 import { Prompt } from './entities/prompt.entity';
 import { VectorService } from './vector.service';
 import { LlmService } from './llm.service';
+import { CloudTasksService } from '../cloud-tasks/cloud-tasks.service';
 
 @Injectable()
 export class JournalService {
@@ -22,6 +23,7 @@ export class JournalService {
         private readonly vectorService: VectorService,
         private readonly llmService: LlmService,
         private readonly dataSource: DataSource,
+        private readonly cloudTasksService: CloudTasksService,
     ) { }
 
     async createEntry(userId: string, content: string, promptId?: string): Promise<Log> {
@@ -159,4 +161,25 @@ export class JournalService {
             };
         });
     }
+
+    async triggerTestTask(payload: any) {
+        this.logger.log(`Triggering test cloud task with payload: ${JSON.stringify(payload)}`);
+        const { queueName, ...taskPayload } = payload;
+        await this.cloudTasksService.createTask(
+            taskPayload,
+            '/api/v1/journal/test/worker',
+            queueName,
+        );
+        return { message: 'Test task enqueued' };
+    }
+
+    async handleTestTask(payload: any) {
+        this.logger.log(`[WORKER] Handling test task. Payload: ${JSON.stringify(payload)}`);
+        // Simulate some work
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        this.logger.log(`[WORKER] Test task completed.`);
+        return { status: 'success' };
+    }
 }
+
+

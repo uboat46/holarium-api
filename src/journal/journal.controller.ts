@@ -88,4 +88,16 @@ export class JournalController {
     async processSummaryTask(@Body() body: { jobId: string; userId: string }) {
         return this.summaryService.processSummaryTask(body.jobId, body.userId);
     }
+
+    @Public()
+    @Post('test/trigger')
+    async triggerTestTask(@Body() body: any) {
+        return this.journalService.triggerTestTask(body);
+    }
+
+    @Public()
+    @Post('test/worker')
+    async handleTestTask(@Body() body: any) {
+        return this.journalService.handleTestTask(body);
+    }
 }
