@@ -21,14 +21,9 @@ export class GcpAuthService {
             if (!this.client) {
                 this.client = await this.auth.getIdTokenClient(targetAudience);
             }
-            // The client caches the token automatically
-            const headers = await this.client.getRequestHeaders();
-            const authHeader = headers['Authorization'];
-            if (!authHeader) {
-                throw new Error('Failed to generate Authorization header');
-            }
-            // Extract token from "Bearer <token>"
-            return authHeader.split(' ')[1];
+            // The IdTokenClient has a fetchIdToken method
+            const token = await this.client.fetchIdToken(targetAudience);
+            return token;
         } catch (error) {
             this.logger.error(`Failed to generate ID token for ${targetAudience}: ${error.message}`);
             // In production, this should probably throw, but we'll return empty string to avoid crashing if auth is optional
