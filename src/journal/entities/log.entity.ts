@@ -8,6 +8,13 @@ import {
     JoinColumn,
 } from 'typeorm';
 
+export enum LogStatus {
+    PENDING = 'pending',
+    PROCESSING = 'processing',
+    COMPLETED = 'completed',
+    FAILED = 'failed',
+}
+
 @Entity('logs')
 export class Log {
     @PrimaryGeneratedColumn('uuid')
@@ -26,6 +33,14 @@ export class Log {
         },
     })
     embedding: number[];
+
+    @Column({
+        name: 'status',
+        type: 'enum',
+        enum: LogStatus,
+        default: LogStatus.PENDING,
+    })
+    status: LogStatus;
 
     @Column({ name: 'metadata', type: 'jsonb', default: {} })
     metadata: Record<string, any>;

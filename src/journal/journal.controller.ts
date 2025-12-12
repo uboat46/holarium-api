@@ -10,6 +10,7 @@ import { JournalService } from './journal.service';
 import { SummaryService } from './summary.service';
 import { PromptService } from './prompt.service';
 import { CreateEntryDto } from './dto/create-entry.dto';
+// import { ChatDto } from './dto/chat.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
@@ -45,6 +46,18 @@ export class JournalController {
             createEntryDto.promptId,
         );
     }
+
+    // @Post('chat')
+    // async chat(
+    //     @CurrentUser() user: ActiveUserData,
+    //     @Body() chatDto: ChatDto,
+    // ) {
+    //     return this.journalService.chat(
+    //         user.userId,
+    //         chatDto.message,
+    //         chatDto.contextLogIds,
+    //     );
+    // }
 
     @Get('stats')
     async getStats(@CurrentUser() user: ActiveUserData) {
@@ -96,8 +109,8 @@ export class JournalController {
     }
 
     @Public()
-    @Post('test/worker')
-    async handleTestTask(@Body() body: any) {
-        return this.journalService.handleTestTask(body);
+    @Post('entry/process')
+    async processLogEntry(@Body() body: { logId: string }) {
+        return this.journalService.processLogEntry(body.logId);
     }
 }
