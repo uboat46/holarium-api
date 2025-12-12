@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { JournalService } from './journal.service';
 import { SummaryService } from './summary.service';
+import { PromptService } from './prompt.service';
 import { CreateEntryDto } from './dto/create-entry.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -20,14 +21,29 @@ export class JournalController {
     constructor(
         private readonly journalService: JournalService,
         private readonly summaryService: SummaryService,
+        private readonly promptService: PromptService,
     ) { }
+
+    @Get('prompts/onboarding')
+    async getOnboardingPrompts(@CurrentUser() user: ActiveUserData) {
+        return this.promptService.getOnboardingPrompts(user.userId);
+    }
+
+    @Get('prompts/daily')
+    async getDailyPrompt(@CurrentUser() user: ActiveUserData) {
+        return this.promptService.getDailyPrompt(user.userId);
+    }
 
     @Post('entry')
     async createEntry(
         @CurrentUser() user: ActiveUserData,
         @Body() createEntryDto: CreateEntryDto,
     ) {
-        return this.journalService.createEntry(user.userId, createEntryDto.content);
+        return this.journalService.createEntry(
+            user.userId,
+            createEntryDto.content,
+            createEntryDto.promptId,
+        );
     }
 
     @Get('stats')

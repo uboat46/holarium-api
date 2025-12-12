@@ -179,4 +179,147 @@ Return ONLY the summary text.`;
             throw error;
         }
     }
+    async generateOnboardingQuestions(): Promise<string[]> {
+        const systemPrompt = `You are a thoughtful guide helping a user start their journaling journey.
+Generate 3 deep, open-ended questions to help them reflect on their current state, values, and goals.
+Return ONLY a JSON array of strings.`;
+
+        try {
+            const token = await this.gcpAuthService.getIdToken(this.ollamaHost);
+            const headers: any = {
+                'Content-Type': 'application/json',
+            };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const response = await fetch(`${this.ollamaHost}/api/chat`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    model: this.chatModel,
+                    messages: [{ role: 'system', content: systemPrompt }],
+                    stream: false,
+                    format: 'json',
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Ollama API error: ${response.status} - ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            const content = data.message.content;
+            // Basic parsing, assuming strict JSON return. Robust parsing similar to analyzeLog would be better in prod.
+            try {
+                const parsed = JSON.parse(content);
+                // Handle if it's wrapped in an object key like "questions"
+                if (Array.isArray(parsed)) return parsed;
+                if (parsed.questions && Array.isArray(parsed.questions)) return parsed.questions;
+                // Fallback
+                return ["What is on your mind?", "What are you grateful for?", "What do you want to achieve?"];
+            } catch (e) {
+                this.logger.warn(`Failed to parse onboarding questions: ${content}`);
+                return ["What is on your mind?", "What are you grateful for?", "What do you want to achieve?"];
+            }
+
+        } catch (error) {
+            this.logger.error(`Failed to generate onboarding questions: ${error.message}`);
+            return ["What is on your mind?", "What are you grateful for?", "What do you want to achieve?"];
+        }
+    }
+
+    async generateContextualPrompt(recentLogs: string[], recentAttributes: any[]): Promise<string> {
+        const context = recentLogs.length > 0 ? `Recent Logs:\n${recentLogs.join('\n')}` : 'No recent logs.';
+        const stats = recentAttributes.length > 0 ? `Current Stats:\n${JSON.stringify(recentAttributes)}` : 'No stats yet.';
+
+        const systemPrompt = `You are an empathic mirror. Your goal is to help the user reflect on their recent life.
+
+**Context (User's Recent Logs):**
+${context}
+
+**User Stats:**
+${stats}
+
+**Task:**
+Ask ONE insightful question to help them reflect today.
+**CRITICAL RULE:** If your question is inspired by a specific event in the logs (e.g., a "deployment", "argument", "project"), you MUST explicitly mention that event in the question so the user knows what you are referring to.
+*   *Bad:* "Why was it difficult?" (Ambiguous)
+*   *Good:* "You mentioned the deployment was difficult; what specifically challenged you?"
+
+Return ONLY the question text.`;
+
+        try {
+            const token = await this.gcpAuthService.getIdToken(this.ollamaHost);
+            const headers: any = {
+                'Content-Type': 'application/json',
+            };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const response = await fetch(`${this.ollamaHost}/api/chat`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    model: this.chatModel,
+                    messages: [{ role: 'system', content: systemPrompt }],
+                    stream: false,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Ollama API error: ${response.status} - ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data.message.content;
+        } catch (error) {
+            this.logger.error(`Failed to generate contextual prompt: ${error.message}`);
+            return "How are you feeling today?";
+        }
+    }
+    async generateFollowUpPrompt(previousQuestion: string, answerContent: string): Promise<string> {
+        const systemPrompt = `You are an empathic mirror engaging in a deep conversation with the user.
+        
+**Previous Interaction:**
+You asked: "${previousQuestion}"
+User answered: "${answerContent}"
+
+**Task:**
+Ask a follow-up question that digs deeper into their answer. Show you understood what they said.
+**Rule:** Be conversational but concise.
+
+Return ONLY the question text.`;
+
+        try {
+            const token = await this.gcpAuthService.getIdToken(this.ollamaHost);
+            const headers: any = {
+                'Content-Type': 'application/json',
+            };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const response = await fetch(`${this.ollamaHost}/api/chat`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    model: this.chatModel,
+                    messages: [{ role: 'system', content: systemPrompt }],
+                    stream: false,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Ollama API error: ${response.status} - ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data.message.content;
+        } catch (error) {
+            this.logger.error(`Failed to generate follow-up prompt: ${error.message}`);
+            return "Tell me more about that.";
+        }
+    }
 }

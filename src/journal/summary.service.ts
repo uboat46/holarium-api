@@ -1,10 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
+import { Repository, Between, In } from 'typeorm';
 import { Summary, SummaryType } from './entities/summary.entity';
 import { Log } from './entities/log.entity';
 import { SummaryJob, JobStatus } from './entities/summary-job.entity';
 import { SummaryJobBatch, BatchStatus } from './entities/summary-job-batch.entity';
+import { Prompt } from './entities/prompt.entity';
 import { LlmService } from './llm.service';
 import { UsersService } from '../users/users.service';
 import { CloudTasksService } from '../cloud-tasks/cloud-tasks.service';
@@ -22,6 +23,8 @@ export class SummaryService {
         private readonly summaryJobRepository: Repository<SummaryJob>,
         @InjectRepository(SummaryJobBatch)
         private readonly summaryJobBatchRepository: Repository<SummaryJobBatch>,
+        @InjectRepository(Prompt)
+        private readonly promptRepository: Repository<Prompt>,
         private readonly llmService: LlmService,
         private readonly usersService: UsersService,
         private readonly cloudTasksService: CloudTasksService,
@@ -69,8 +72,30 @@ export class SummaryService {
             return null;
         }
 
+        // Fetch associated Prompt content for logs that are answers
+        const promptIds = logs
+            .map(l => l.metadata?.promptId)
+            .filter(id => !!id);
+
+        let promptsMap = new Map<string, string>();
+        if (promptIds.length > 0) {
+            // Deduplicate ids
+            const uniqueIds = Array.from(new Set(promptIds));
+            const prompts = await this.promptRepository.find({
+                where: { id: In(uniqueIds) }
+            });
+            prompts.forEach(p => promptsMap.set(p.id, p.content));
+        }
+
         const logsContent = logs
-            .map((log) => `[${log.createdAt.toISOString()}] ${log.content}`)
+            .map((log) => {
+                const promptId = log.metadata?.promptId;
+                let prefix = '';
+                if (promptId && promptsMap.has(promptId)) {
+                    prefix = `Q: "${promptsMap.get(promptId)}"\nA: `;
+                }
+                return `[${log.createdAt.toISOString()}] ${prefix}${log.content}`;
+            })
             .join('\n');
 
         // 2. Generate Summary with LLM
@@ -86,6 +111,7 @@ export class SummaryService {
 
         // For now, to keep it simple and within the current LlmService structure, 
         // I'll add a `generateSummary` method to LlmService in the next step.
+        console.log('Generating summary for user', userId);
         const summaryText = await this.llmService.generateSummary(logsContent);
 
         // 3. Save or Update Summary

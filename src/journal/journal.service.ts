@@ -4,6 +4,7 @@ import { DataSource, Repository } from 'typeorm';
 import { Log } from './entities/log.entity';
 import { Attribute } from './entities/attribute.entity';
 import { Summary } from './entities/summary.entity';
+import { Prompt } from './entities/prompt.entity';
 import { VectorService } from './vector.service';
 import { LlmService } from './llm.service';
 
@@ -23,7 +24,7 @@ export class JournalService {
         private readonly dataSource: DataSource,
     ) { }
 
-    async createEntry(userId: string, content: string): Promise<Log> {
+    async createEntry(userId: string, content: string, promptId?: string): Promise<Log> {
         this.logger.log(`Creating entry for user ${userId}`);
 
         // 1. Generate Embedding
@@ -61,6 +62,7 @@ export class JournalService {
                 metadata: {
                     sentiment: analysis.sentiment,
                     entities: analysis.entities,
+                    promptId: promptId || null, // Store promptId in metadata for reference
                 },
             });
             const savedLog = await queryRunner.manager.save(log);
@@ -75,6 +77,16 @@ export class JournalService {
                 });
             });
             await queryRunner.manager.save(attributes);
+
+            // Update Prompt if exists
+            if (promptId) {
+                // We use update here, but inside a transaction ideally we lock or check validation.
+                // For simplicity, just update the flag.
+                await queryRunner.manager.update(Prompt, promptId, {
+                    isAnswered: true,
+                    referenceLogId: savedLog.id,
+                });
+            }
 
             await queryRunner.commitTransaction();
             this.logger.log(`Entry created successfully: ${savedLog.id}`);
