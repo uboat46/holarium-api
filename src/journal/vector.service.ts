@@ -55,11 +55,11 @@ export class VectorService {
         }
     }
 
-    async search(userId: string, embedding: number[], limit: number = 3): Promise<any[]> {
+    async search(userId: string, embedding: number[], limit: number = 3, threshold: number = 0.25): Promise<any[]> {
         const embeddingString = JSON.stringify(embedding);
         return this.dataSource.query(
-            `SELECT * FROM logs WHERE user_id = $1 ORDER BY embedding <=> $2 LIMIT $3`,
-            [userId, embeddingString, limit],
+            `SELECT * FROM logs WHERE user_id = $1 AND embedding <=> $2 < $4 ORDER BY embedding <=> $2 LIMIT $3`,
+            [userId, embeddingString, limit, threshold],
         );
     }
 }

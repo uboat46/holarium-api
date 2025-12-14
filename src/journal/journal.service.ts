@@ -30,7 +30,7 @@ export class JournalService {
     async createEntry(userId: string, content: string, promptId?: string): Promise<Log> {
         this.logger.log(`Creating pending entry for user ${userId}`);
 
-        // 1. Save Log Early (Pending)
+        // 1. Save Log Early (Pending status)
         const log = this.logRepository.create({
             userId,
             content,
@@ -76,11 +76,9 @@ export class JournalService {
             const embedding = await this.vectorService.generateEmbedding(content);
 
             // 2. Context Retrieval (RAG)
-            const similarLogs = await this.vectorService.search(userId, embedding, 5);
+            const similarLogs = await this.vectorService.search(userId, embedding, 5, 0.5);
             const context = similarLogs.map((log) => log.content);
-            this.logger.log(
-                `Found similar logs: ${similarLogs.map((l) => l.id).join(', ')}`,
-            );
+            this.logger.log(`Found ${similarLogs.length} similar logs for context.`);
 
             // Fetch recent summaries (Macro-Context)
             const recentSummaries = await this.summaryRepository.find({
@@ -240,25 +238,6 @@ export class JournalService {
     //     // 4. Call LLM
     //     return this.llmService.chat(message, logContext, stats, summaryContext);
     // }
-
-    async triggerTestTask(payload: any) {
-        this.logger.log(`Triggering test cloud task with payload: ${JSON.stringify(payload)}`);
-        const { queueName, ...taskPayload } = payload;
-        await this.cloudTasksService.createTask(
-            taskPayload,
-            '/api/v1/journal/test/worker',
-            queueName,
-        );
-        return { message: 'Test task enqueued' };
-    }
-
-    async handleTestTask(payload: any) {
-        this.logger.log(`[WORKER] Handling test task. Payload: ${JSON.stringify(payload)}`);
-        // Simulate some work
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        this.logger.log(`[WORKER] Test task completed.`);
-        return { status: 'success' };
-    }
 }
 
 
