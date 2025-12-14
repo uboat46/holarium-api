@@ -14,6 +14,7 @@ import { CreateEntryDto } from './dto/create-entry.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
+import { CloudTaskGuard } from '../auth/guards/cloud-task.guard';
 import type { ActiveUserData } from '../auth/interfaces/active-user-data.interface';
 
 @Controller('journal')
@@ -84,30 +85,28 @@ export class JournalController {
 
     // --- Cloud Tasks Orchestration ---
 
-    @Public()
+    @UseGuards(CloudTaskGuard)
+    @Public() // We still need Public() to bypass JwtAuthGuard, but we add CloudTaskGuard
     @Post('summary/cron-trigger')
     async triggerBatchSummaries() {
         return this.summaryService.initiateBatchSummaries();
     }
 
+    @UseGuards(CloudTaskGuard)
     @Public()
     @Post('summary/batch-process')
     async processBatch(@Body() body: { batchId: string; lastId: string; limit: number }) {
         return this.summaryService.processBatch(body.batchId, body.lastId, body.limit);
     }
 
+    @UseGuards(CloudTaskGuard)
     @Public()
     @Post('summary/process')
     async processSummaryTask(@Body() body: { jobId: string; userId: string }) {
         return this.summaryService.processSummaryTask(body.jobId, body.userId);
     }
 
-    @Public()
-    @Post('test/trigger')
-    async triggerTestTask(@Body() body: any) {
-        return this.journalService.triggerTestTask(body);
-    }
-
+    @UseGuards(CloudTaskGuard)
     @Public()
     @Post('entry/process')
     async processLogEntry(@Body() body: { logId: string }) {

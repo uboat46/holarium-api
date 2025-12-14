@@ -36,7 +36,11 @@ export class CloudTasksService {
             // Fire and forget - we don't await the result to simulate async task queue behavior
             // However, for local debugging, sometimes it's better to await to see errors.
             // Let's await it but catch errors so it doesn't crash the caller.
-            await firstValueFrom(this.httpService.post(url, payload));
+            await firstValueFrom(
+                this.httpService.post(url, payload, {
+                    headers: { 'X-Cloud-Task-Local': 'true' },
+                }),
+            );
             this.logger.log(`[Local Dev] Task executed successfully`);
         } catch (error) {
             this.logger.error(`[Local Dev] Task execution failed: ${error.message}`);
@@ -48,6 +52,7 @@ export class CloudTasksService {
         const queue = queueName || process.env.GCP_QUEUE_NAME;
         const location = process.env.GCP_LOCATION;
         const apiUrl = process.env.API_URL;
+        const serviceAccountEmail = process.env.GCP_SERVICE_ACCOUNT_EMAIL;
 
         if (!project || !queue || !location || !apiUrl) {
             throw new Error('Missing GCP Cloud Tasks configuration');
@@ -56,7 +61,7 @@ export class CloudTasksService {
         const parent = this.client.queuePath(project, location, queue);
         const url = `${apiUrl}${endpoint}`;
 
-        const task = {
+        const task: any = {
             httpRequest: {
                 httpMethod: 'POST' as const,
                 url,
@@ -64,12 +69,14 @@ export class CloudTasksService {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                // Add OIDC token if needed for auth
-                // oidcToken: {
-                //   serviceAccountEmail: process.env.GCP_SERVICE_ACCOUNT_EMAIL,
-                // },
             },
         };
+
+        if (serviceAccountEmail) {
+            task.httpRequest.oidcToken = {
+                serviceAccountEmail,
+            };
+        }
 
         this.logger.log(`Enqueuing Cloud Task to ${url} (Queue: ${queue})`);
         const [response] = await this.client.createTask({ parent, task });
